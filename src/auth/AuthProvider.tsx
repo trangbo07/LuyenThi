@@ -1,21 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { loadOrCreateProfile } from '../lib/profile';
 import { signOutReliably } from '../lib/signOutReliably';
 import type { Profile } from '../types/database.types';
 import { AuthContext } from './auth-context';
 import type { AuthState } from './auth-context';
-
-async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, role, created_at')
-    .eq('id', userId)
-    .single();
-
-  if (error) return null;
-  return (data as Profile) || null;
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -29,7 +19,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
       return;
     }
-    const p = await fetchProfile(u.id);
+    const p = await loadOrCreateProfile(u);
     setProfile(p);
   }, []);
 
@@ -42,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
-        const p = await fetchProfile(data.session.user.id);
+        const p = await loadOrCreateProfile(data.session.user);
         if (!mounted) return;
         setProfile(p);
       } else {
@@ -51,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     })();
 
-    // Avoid async callback: Supabase awaits callback; defer profile fetch to prevent lock issues.
     const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
       setSession(nextSession);
@@ -60,8 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         return;
       }
-      const uid = nextSession.user.id;
-      void fetchProfile(uid).then((p) => {
+      void loadOrCreateProfile(nextSession.user).then((p) => {
         if (!mounted) return;
         setProfile(p);
       });

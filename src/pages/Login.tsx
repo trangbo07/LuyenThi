@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { formatAuthError } from '../lib/authErrors';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as any)?.from || '/generate';
+  const state = location.state as { from?: string; message?: string } | null;
+  const from = state?.from || '/generate';
+  const bannerMessage = state?.message;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,7 +19,7 @@ export default function Login() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return alert('Sign-in failed: ' + error.message);
+    if (error) return alert(formatAuthError(error));
     navigate(from, { replace: true });
   };
 
@@ -27,6 +30,24 @@ export default function Login() {
         <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '1rem' }}>
           Sign in to take exams and view your history.
         </div>
+
+        {bannerMessage && (
+          <div
+            role="status"
+            style={{
+              marginBottom: '1rem',
+              padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(79, 70, 229, 0.08)',
+              border: '1px solid rgba(79, 70, 229, 0.25)',
+              color: 'var(--text-primary)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+          >
+            {bannerMessage}
+          </div>
+        )}
 
         <form onSubmit={onSubmit} className="grid gap-4">
           <div>
