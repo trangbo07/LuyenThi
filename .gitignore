@@ -1,3 +1,10 @@
+# Dependencies & build output
+node_modules
+dist
+dist-ssr
+build
+*.local
+
 # Logs
 logs
 *.log
@@ -7,23 +14,50 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Secrets (never commit)
+# Environment & secrets (keep .env.example tracked)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
-# Editor directories and files
+# TypeScript
+*.tsbuildinfo
+
+# Vite / bundler cache
+.cache
+.vite
+.vitest
+
+# ESLint
+.eslintcache
+
+# Tests & coverage (if you add Vitest/Jest later)
+coverage
+*.lcov
+
+# Supabase CLI (local temp / branches — not needed on GitHub)
+supabase/.branches
+supabase/.temp
+
+# Editor & IDEs
 .vscode/*
 !.vscode/extensions.json
 .idea
+*.sw?
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Windows junk
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+
+# Misc
+*.pem
+.vercel
