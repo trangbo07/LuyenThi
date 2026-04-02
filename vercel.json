@@ -1,0 +1,22 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/register", "destination": "/index.html" },
+    { "source": "/generate", "destination": "/index.html" },
+    { "source": "/exam", "destination": "/index.html" },
+    { "source": "/result", "destination": "/index.html" },
+    { "source": "/history", "destination": "/index.html" },
+    { "source": "/import", "destination": "/index.html" },
+    { "source": "/bank", "destination": "/index.html" },
+    { "source": "/battle/join", "destination": "/index.html" },
+    { "source": "/battle/create", "destination": "/index.html" },
+    { "source": "/battle/manage", "destination": "/index.html" },
+    { "source": "/battle/:code/ranking", "destination": "/index.html" },
+    { "source": "/battle/:code", "destination": "/index.html" },
+    { "source": "/attempt/:id", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/admin/:path*", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

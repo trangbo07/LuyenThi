@@ -2,12 +2,18 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { formatAuthError } from '../lib/authErrors';
+import { loadOrCreateProfile } from '../lib/profile';
+
+function safeRedirectPath(from: string | undefined): string | null {
+  if (!from || from === '/login' || from === '/register') return null;
+  return from;
+}
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as { from?: string; message?: string } | null;
-  const from = state?.from || '/generate';
+  const returnTo = safeRedirectPath(state?.from);
   const bannerMessage = state?.message;
 
   const [email, setEmail] = useState('');
@@ -18,9 +24,25 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setLoading(false);
+      return alert(formatAuthError(error));
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return alert('Signed in but user was not found. Try again.');
+    }
+
+    const profile = await loadOrCreateProfile(user);
+    const role = profile?.role ?? 'user';
+
+    const destination =
+      returnTo ?? (role === 'admin' ? '/admin' : '/generate');
+
     setLoading(false);
-    if (error) return alert(formatAuthError(error));
-    navigate(from, { replace: true });
+    navigate(destination, { replace: true });
   };
 
   return (
