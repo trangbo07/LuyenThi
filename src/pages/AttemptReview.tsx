@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useI18n } from '../i18n/I18nProvider';
 
 type DbAttempt = {
   id: string;
@@ -24,6 +25,7 @@ type DbQuestion = {
 };
 
 export default function AttemptReview() {
+  const { t } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export default function AttemptReview() {
 
       if (cancelled) return;
       if (attemptErr || !attempt) {
-        alert('Attempt not found.');
+        alert(t('attemptNotFound'));
         navigate('/history');
         return;
       }
@@ -55,7 +57,7 @@ export default function AttemptReview() {
 
       if (cancelled) return;
       if (aaErr || !attemptAnswers) {
-        alert('Could not load answers for this attempt.');
+        alert(t('attemptLoadAnswersError'));
         navigate('/history');
         return;
       }
@@ -68,7 +70,7 @@ export default function AttemptReview() {
 
       if (cancelled) return;
       if (qErr || !questions) {
-        alert('Could not load questions.');
+        alert(t('attemptLoadQuestionsError'));
         navigate('/history');
         return;
       }
@@ -109,11 +111,11 @@ export default function AttemptReview() {
     return () => {
       cancelled = true;
     };
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   return (
     <div className="card text-center" style={{ padding: '3rem' }}>
-      {loading ? 'Loading review...' : 'Redirecting...'}
+      {loading ? t('attemptLoadingReview') : t('attemptRedirecting')}
     </div>
   );
 }

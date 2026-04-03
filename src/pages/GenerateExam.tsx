@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Subject, ExamSession } from '../types/database.types';
+import { useI18n } from '../i18n/I18nProvider';
 
 export default function GenerateExam() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -42,9 +44,9 @@ export default function GenerateExam() {
   };
 
   const handleGenerate = async () => {
-    if (!selectedSubject) return alert('Select a subject.');
-    if (selectedSessions.length === 0) return alert('Select at least one session.');
-    if (questionCount <= 0) return alert('Question count must be > 0');
+    if (!selectedSubject) return alert(t('generateAlertSelectSubject'));
+    if (selectedSessions.length === 0) return alert(t('generateAlertSelectSession'));
+    if (questionCount <= 0) return alert(t('generateAlertQuestionCount'));
 
     setGenerating(true);
 
@@ -57,11 +59,11 @@ export default function GenerateExam() {
     setGenerating(false);
 
     if (error) {
-      return alert('Error fetching questions: ' + error.message);
+      return alert(t('generateFetchError', { message: error.message }));
     }
 
     if (!data || data.length === 0) {
-      return alert('No questions found in selected sessions.');
+      return alert(t('generateNoQuestions'));
     }
 
     // Filter out duplicate questions by question text to prevent identical questions
@@ -103,20 +105,20 @@ export default function GenerateExam() {
 
   return (
     <div className="card animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h2 className="mb-4 text-center">Generate Exam</h2>
+      <h2 className="mb-4 text-center">{t('generateTitle')}</h2>
 
       <div className="mb-4">
-        <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>Subject</label>
+        <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateSubject')}</label>
         <select value={selectedSubject} onChange={handleSubjectChange}>
-          <option value="">-- Choose Subject --</option>
+          <option value="">{t('generateChooseSubject')}</option>
           {subjects.map(s => <option key={s.id} value={s.id}>{s.code} - {s.name}</option>)}
         </select>
       </div>
 
       {selectedSubject && (
         <div className="mb-4">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>Select Sessions (Merge multiple)</label>
-          {sessions.length === 0 && <p className="text-muted text-sm">No sessions found.</p>}
+          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateSessions')}</label>
+          {sessions.length === 0 && <p className="text-muted text-sm">{t('generateNoSessions')}</p>}
           <div className="grid gap-2" style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
             {sessions.map(s => (
               <label key={s.id} className="flex gap-2 items-center" style={{ cursor: 'pointer' }}>
@@ -135,7 +137,7 @@ export default function GenerateExam() {
 
       <div className="flex gap-4 mb-6">
         <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>Number of Questions</label>
+          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateQuestionCount')}</label>
           <input
             type="number"
             value={questionCount}
@@ -146,7 +148,7 @@ export default function GenerateExam() {
           />
         </div>
         <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>Time Limit (minutes)</label>
+          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateTimeLimit')}</label>
           <input
             type="number"
             value={timeLimit}
@@ -159,7 +161,7 @@ export default function GenerateExam() {
       </div>
 
       <button className="btn btn-primary w-full" style={{ width: '100%', padding: '1rem' }} onClick={handleGenerate} disabled={generating || !selectedSubject || selectedSessions.length === 0}>
-        {generating ? 'Processing...' : 'Generate Exam & Start'}
+        {generating ? t('generateProcessing') : t('generateStart')}
       </button>
 
     </div>

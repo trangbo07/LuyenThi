@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { ExamSession, Subject } from '../types/database.types';
 import { shuffleSeeded } from '../lib/seedShuffle';
+import { useI18n } from '../i18n/I18nProvider';
 
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -13,6 +14,7 @@ function genCode() {
 
 export default function BattleCreate() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -38,9 +40,9 @@ export default function BattleCreate() {
   };
 
   const handleCreate = async () => {
-    if (!selectedSubject) return alert('Select a subject.');
-    if (selectedSessions.length === 0) return alert('Select at least one session.');
-    if (questionCount <= 0) return alert('Question count must be greater than 0');
+    if (!selectedSubject) return alert(t('battleCreateSelectSubject'));
+    if (selectedSessions.length === 0) return alert(t('battleCreateSelectSession'));
+    if (questionCount <= 0) return alert(t('battleCreateQuestionCountInvalid'));
 
     setCreating(true);
 
@@ -48,7 +50,7 @@ export default function BattleCreate() {
     const userId = userData.user?.id;
     if (!userId) {
       setCreating(false);
-      return alert('You must be signed in.');
+      return alert(t('battleCreateNeedSignIn'));
     }
 
     // Fetch all questions from selected sessions
@@ -59,7 +61,7 @@ export default function BattleCreate() {
 
     if (error || !qs || qs.length === 0) {
       setCreating(false);
-      return alert('Could not load questions.');
+      return alert(t('battleCreateLoadQuestionsError'));
     }
 
     // Deduplicate by normalized question text
@@ -89,7 +91,7 @@ export default function BattleCreate() {
 
     if (!competitionId) {
       setCreating(false);
-      return alert('Could not create room (code collision). Try again.');
+      return alert(t('battleCreateCollisionError'));
     }
 
     // Seeded shuffle for fairness (same question set order)
@@ -99,7 +101,7 @@ export default function BattleCreate() {
     const { error: cqErr } = await supabase.from('competition_questions').insert(inserts);
     if (cqErr) {
       setCreating(false);
-      return alert('Could not save battle questions: ' + cqErr.message);
+      return alert(t('battleCreateSaveQuestionError', { message: cqErr.message }));
     }
 
     // Admin creates room only — participants join via room list / code.
@@ -110,13 +112,13 @@ export default function BattleCreate() {
 
   return (
     <div className="card animate-fade-in" style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <h2 className="mb-2 text-center">Create battle room (Admin)</h2>
+      <h2 className="mb-2 text-center">{t('battleCreateTitle')}</h2>
       <p className="text-muted text-sm text-center mb-4" style={{ fontWeight: 600 }}>
-        Pick subject, sessions, question count, and time limit. Share the room code with students — one attempt per person per room; ranking by score.
+        {t('battleCreateSubtitle')}
       </p>
 
       <div className="mb-4">
-        <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>Subject</label>
+        <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateSubject')}</label>
         <select
           value={selectedSubject}
           onChange={(e) => {
@@ -127,7 +129,7 @@ export default function BattleCreate() {
             if (id) fetchSessions(id);
           }}
         >
-          <option value="">-- Choose subject --</option>
+          <option value="">{t('battleCreateChooseSubject')}</option>
           {subjects.map(s => (
             <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
           ))}
@@ -136,7 +138,7 @@ export default function BattleCreate() {
 
       {selectedSubject && (
         <div className="mb-4">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>Sessions (one or more)</label>
+          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateSessions')}</label>
           <div className="grid gap-2" style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
             {sessions.map(s => (
               <label key={s.id} className="flex gap-2 items-center" style={{ cursor: 'pointer' }}>
@@ -150,17 +152,17 @@ export default function BattleCreate() {
 
       <div className="flex gap-4 mb-6">
         <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>Question count</label>
+          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateQuestionCount')}</label>
           <input type="number" value={questionCount} onChange={(e) => setQuestionCount(parseInt(e.target.value))} min={1} max={200} />
         </div>
         <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>Time limit (minutes)</label>
+          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateTimeLimit')}</label>
           <input type="number" value={timeLimit} onChange={(e) => setTimeLimit(parseInt(e.target.value))} min={1} max={300} />
         </div>
       </div>
 
       <button className="btn btn-primary w-full" style={{ width: '100%', padding: '1rem' }} onClick={handleCreate} disabled={creating || !selectedSubject || selectedSessions.length === 0}>
-        {creating ? 'Creating...' : 'Create room & get code'}
+        {creating ? t('battleCreating') : t('battleCreateBtn')}
       </button>
     </div>
   );

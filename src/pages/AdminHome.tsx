@@ -1,44 +1,46 @@
 import { Link } from 'react-router-dom';
 import { Upload, Database, Swords, ClipboardList } from 'lucide-react';
-
-const cards = [
-  {
-    to: '/admin/import',
-    title: 'Import questions',
-    description: 'Upload OCR text and parse questions into exams.',
-    icon: Upload,
-    color: '#4F46E5'
-  },
-  {
-    to: '/admin/bank',
-    title: 'Question bank',
-    description: 'Manage subjects, sessions, and questions.',
-    icon: Database,
-    color: '#0F766E'
-  },
-  {
-    to: '/admin/battle/create',
-    title: 'Create battle room',
-    description: 'Configure a new competition room and question set.',
-    icon: Swords,
-    color: '#C2410C'
-  },
-  {
-    to: '/admin/battle/manage',
-    title: 'Manage rooms',
-    description: 'Open or close rooms, view stats and rankings.',
-    icon: ClipboardList,
-    color: '#7C3AED'
-  }
-];
+import { useI18n } from '../i18n/I18nProvider';
 
 export default function AdminHome() {
+  const { t } = useI18n();
+  const cards = [
+    {
+      to: '/admin/import',
+      title: t('adminCardImportTitle'),
+      description: t('adminCardImportDesc'),
+      icon: Upload,
+      color: '#4F46E5'
+    },
+    {
+      to: '/admin/bank',
+      title: t('adminCardBankTitle'),
+      description: t('adminCardBankDesc'),
+      icon: Database,
+      color: '#0F766E'
+    },
+    {
+      to: '/admin/battle/create',
+      title: t('adminCardCreateBattleTitle'),
+      description: t('adminCardCreateBattleDesc'),
+      icon: Swords,
+      color: '#C2410C'
+    },
+    {
+      to: '/admin/battle/manage',
+      title: t('adminCardManageRoomTitle'),
+      description: t('adminCardManageRoomDesc'),
+      icon: ClipboardList,
+      color: '#7C3AED'
+    }
+  ];
+
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h2 style={{ margin: 0, fontSize: '1.35rem' }}>Overview</h2>
+        <h2 style={{ margin: 0, fontSize: '1.35rem' }}>{t('adminOverview')}</h2>
         <p className="text-sm text-muted" style={{ fontWeight: 600, marginTop: '0.35rem' }}>
-          Quick access to administration tools. Use the sidebar to switch sections.
+          {t('adminOverviewSubtitle')}
         </p>
       </div>
 

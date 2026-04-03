@@ -10,6 +10,8 @@ import {
   Unlock,
   ExternalLink
 } from 'lucide-react';
+import PaginationControls from '../components/PaginationControls';
+import { useI18n } from '../i18n/I18nProvider';
 
 type CompetitionRow = {
   id: string;
@@ -39,10 +41,13 @@ function countByCompetitionId(rows: { competition_id: string }[] | null) {
 
 export default function BattleManage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Enriched[]>([]);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,7 +59,7 @@ export default function BattleManage() {
 
     if (cErr) {
       setLoading(false);
-      alert('Could not load rooms: ' + cErr.message);
+      alert(t('battleLoadRoomsError', { message: cErr.message }));
       return;
     }
 
@@ -85,7 +90,7 @@ export default function BattleManage() {
 
     setRows(enriched);
     setLoading(false);
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -97,25 +102,34 @@ export default function BattleManage() {
     return rows.filter((r) => r.status === 'closed');
   }, [rows, filter]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [filter]);
+
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
   const closeRoom = async (id: string) => {
-    if (!confirm('Close this room? Students will not be able to start a new attempt.')) return;
+    if (!confirm(t('battleCloseConfirm'))) return;
     setClosingId(id);
     const { error } = await supabase.from('competitions').update({ status: 'closed' }).eq('id', id);
     setClosingId(null);
     if (error) {
-      alert('Could not close room: ' + error.message);
+      alert(t('battleCloseError', { message: error.message }));
       return;
     }
     await load();
   };
 
   const reopenRoom = async (id: string) => {
-    if (!confirm('Reopen this room?')) return;
+    if (!confirm(t('battleReopenConfirm'))) return;
     setClosingId(id);
     const { error } = await supabase.from('competitions').update({ status: 'open' }).eq('id', id);
     setClosingId(null);
     if (error) {
-      alert('Could not reopen room: ' + error.message);
+      alert(t('battleReopenError', { message: error.message }));
       return;
     }
     await load();
@@ -124,9 +138,9 @@ export default function BattleManage() {
   const copyCode = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
-      alert('Copied code: ' + code);
+      alert(t('battleCopyCodeDone', { code }));
     } catch {
-      alert('Room code: ' + code);
+      alert(t('battleRoomCode', { code }));
     }
   };
 
@@ -148,18 +162,18 @@ export default function BattleManage() {
           <div className="flex items-center gap-2">
             <ClipboardList size={28} color="var(--primary-color)" />
             <div>
-              <h2 style={{ margin: 0 }}>Battle room management</h2>
+              <h2 style={{ margin: 0 }}>{t('battleManageTitle')}</h2>
               <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 600, marginTop: '0.25rem' }}>
-                View open/closed rooms, participants, and submissions.
+                {t('battleManageSubtitle')}
               </div>
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
             <button type="button" className="btn btn-secondary" style={{ borderRadius: '999px' }} onClick={() => load()}>
-              <RefreshCw size={18} /> Refresh
+              <RefreshCw size={18} /> {t('battleRefresh')}
             </button>
             <Link to="/admin/battle/create" className="btn btn-primary" style={{ borderRadius: '999px', textDecoration: 'none' }}>
-              + New room
+              + {t('battleNewRoom')}
             </Link>
           </div>
         </div>
@@ -178,7 +192,7 @@ export default function BattleManage() {
               }}
               onClick={() => setFilter(f)}
             >
-              {f === 'all' ? 'All' : f === 'open' ? 'Open' : 'Closed'}
+              {f === 'all' ? t('battleAll') : f === 'open' ? t('battleOpen') : t('battleClosed')}
             </button>
           ))}
         </div>
@@ -186,19 +200,19 @@ export default function BattleManage() {
 
       {loading && (
         <div className="card text-center" style={{ padding: '3rem' }}>
-          Loading...
+          {t('battleLoading')}
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
         <div className="card text-center" style={{ padding: '3rem' }}>
-          No battle rooms yet, or none match the filter.
+          {t('battleNoRoomsFilter')}
         </div>
       )}
 
       {!loading && filtered.length > 0 && (
         <div className="grid gap-4">
-          {filtered.map((r) => (
+          {pagedRows.map((r) => (
             <div key={r.id} className="card" style={{ borderLeft: `6px solid ${r.status === 'open' ? 'var(--success-color)' : 'var(--text-secondary)'}` }}>
               <div className="flex justify-between items-start gap-4 flex-wrap">
                 <div style={{ minWidth: 0, flex: '1 1 280px' }}>
@@ -207,32 +221,32 @@ export default function BattleManage() {
                     {r.status === 'open' ? (
                       <span style={{ fontSize: '0.8rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: '999px', background: 'rgba(16, 185, 129, 0.15)', color: '#065f46' }}>
                         <Unlock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                        Open
+                        {t('battleOpen')}
                       </span>
                     ) : (
                       <span style={{ fontSize: '0.8rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: '999px', background: 'rgba(100, 116, 139, 0.2)', color: '#334155' }}>
                         <Lock size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                        Closed
+                        {t('battleClosed')}
                       </span>
                     )}
                   </div>
                   <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, lineHeight: 1.5 }}>
-                    <div><b>Subject:</b> {subjectLabel(r)}</div>
+                    <div><b>{t('battleSubjectLabel')}</b> {subjectLabel(r)}</div>
                     <div>
-                      <b>Questions:</b> {r.questionCount} • <b>Time:</b> {r.time_limit_minutes} min
+                      <b>{t('battleQuestionsLabel')}</b> {r.questionCount} • <b>{t('battleTimeLabel')}</b> {r.time_limit_minutes} min
                     </div>
                     <div>
-                      <b>Joined:</b> {r.participantCount} • <b>Submitted:</b> {r.submittedCount}
+                      <b>{t('battleJoinedLabel')}</b> {r.participantCount} • <b>{t('battleSubmittedLabel')}</b> {r.submittedCount}
                     </div>
                     <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                      Created: {new Date(r.created_at).toLocaleString()}
+                      {t('battleCreatedLabel')} {new Date(r.created_at).toLocaleString()}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex gap-2 flex-wrap" style={{ alignItems: 'center' }}>
                   <button type="button" className="btn btn-secondary" style={{ borderRadius: '999px' }} onClick={() => copyCode(r.code)}>
-                    <Copy size={16} /> Copy code
+                    <Copy size={16} /> {t('battleCopyCode')}
                   </button>
                   <button
                     type="button"
@@ -240,7 +254,7 @@ export default function BattleManage() {
                     style={{ borderRadius: '999px' }}
                     onClick={() => navigate(`/battle/${r.code}/ranking`)}
                   >
-                    <Trophy size={16} /> Ranking
+                    <Trophy size={16} /> {t('battleRanking')}
                   </button>
                   <button
                     type="button"
@@ -248,7 +262,7 @@ export default function BattleManage() {
                     style={{ borderRadius: '999px' }}
                     onClick={() => navigate(`/battle/${r.code}`)}
                   >
-                    <ExternalLink size={16} /> Open room
+                    <ExternalLink size={16} /> {t('battleOpenRoom')}
                   </button>
                   {r.status === 'open' ? (
                     <button
@@ -258,7 +272,7 @@ export default function BattleManage() {
                       disabled={closingId === r.id}
                       onClick={() => closeRoom(r.id)}
                     >
-                      <Lock size={16} /> Close room
+                      <Lock size={16} /> {t('battleCloseRoom')}
                     </button>
                   ) : (
                     <button
@@ -268,13 +282,24 @@ export default function BattleManage() {
                       disabled={closingId === r.id}
                       onClick={() => reopenRoom(r.id)}
                     >
-                      <Unlock size={16} /> Reopen
+                      <Unlock size={16} /> {t('battleReopen')}
                     </button>
                   )}
                 </div>
               </div>
             </div>
           ))}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            totalItems={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+            pageSizeOptions={[4, 8, 12, 20]}
+          />
         </div>
       )}
     </div>

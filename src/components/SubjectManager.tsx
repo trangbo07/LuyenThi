@@ -2,12 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Subject } from '../types/database.types';
 import { Trash2, Plus } from 'lucide-react';
+import PaginationControls from './PaginationControls';
+import { useI18n } from '../i18n/I18nProvider';
 
 export default function SubjectManager() {
+  const { t } = useI18n();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     fetchSubjects();
@@ -20,6 +25,8 @@ export default function SubjectManager() {
     }
   };
 
+  const pagedSubjects = subjects.slice((page - 1) * pageSize, page * pageSize);
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || !name) return;
@@ -31,41 +38,41 @@ export default function SubjectManager() {
       setName('');
       fetchSubjects();
     } else {
-      alert('Error adding subject: ' + error.message);
+      alert(t('subjectAddError', { message: error.message }));
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure? This will delete all related sessions and questions.')) return;
+    if (!confirm(t('subjectDeleteConfirm'))) return;
     const { error } = await supabase.from('subjects').delete().eq('id', id);
     if (!error) {
       fetchSubjects();
     } else {
-      alert('Error deleting subject: ' + error.message);
+      alert(t('subjectDeleteError', { message: error.message }));
     }
   };
 
   return (
     <div className="card mb-4 animate-fade-in">
-      <h3 className="mb-4">Manage Subjects</h3>
+      <h3 className="mb-4">{t('subjectManageTitle')}</h3>
       
       <form onSubmit={handleAdd} className="flex gap-4 mb-4 items-center">
         <input 
-          placeholder="Subject Code (e.g. PRJ301)" 
+          placeholder={t('subjectCodePlaceholder')} 
           value={code} 
           onChange={(e) => setCode(e.target.value)} 
           className="flex-1"
           required
         />
         <input 
-          placeholder="Subject Name (e.g. Java Web)" 
+          placeholder={t('subjectNamePlaceholder')} 
           value={name} 
           onChange={(e) => setName(e.target.value)} 
           className="flex-1"
           required
         />
         <button type="submit" className="btn btn-primary" disabled={loading} style={{ whiteSpace: 'nowrap' }}>
-          <Plus size={18} /> Add Subject
+          <Plus size={18} /> {t('subjectAdd')}
         </button>
       </form>
 
@@ -73,17 +80,17 @@ export default function SubjectManager() {
         <table>
           <thead>
             <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th style={{ width: '100px', textAlign: 'right' }}>Actions</th>
+              <th>{t('subjectCode')}</th>
+              <th>{t('subjectName')}</th>
+              <th style={{ width: '100px', textAlign: 'right' }}>{t('subjectActions')}</th>
             </tr>
           </thead>
           <tbody>
             {subjects.length === 0 ? (
               <tr>
-                <td colSpan={3} className="text-center text-muted" style={{ padding: '2rem' }}>No subjects found. Add one above.</td>
+                <td colSpan={3} className="text-center text-muted" style={{ padding: '2rem' }}>{t('subjectEmpty')}</td>
               </tr>
-            ) : subjects.map(s => (
+            ) : pagedSubjects.map(s => (
               <tr key={s.id}>
                 <td style={{ fontWeight: 500 }}>{s.code}</td>
                 <td>{s.name}</td>
@@ -97,6 +104,17 @@ export default function SubjectManager() {
           </tbody>
         </table>
       </div>
+
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        totalItems={subjects.length}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
     </div>
   );
 }

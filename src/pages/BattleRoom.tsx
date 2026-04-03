@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { shuffleSeeded } from '../lib/seedShuffle';
 import { Copy, PlayCircle, Trophy } from 'lucide-react';
+import { useI18n } from '../i18n/I18nProvider';
 
 type DbCompetition = {
   id: string;
@@ -29,6 +30,7 @@ type ProcessedQuestion = {
 export default function BattleRoom() {
   const { code } = useParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [competition, setCompetition] = useState<DbCompetition | null>(null);
   const [questions, setQuestions] = useState<ProcessedQuestion[]>([]);
@@ -60,7 +62,7 @@ export default function BattleRoom() {
       if (cancelled) return;
       if (compErr || !comp) {
         setLoading(false);
-        alert('Battle room not found.');
+        alert(t('battleRoomNotFound'));
         navigate('/battle/join');
         return;
       }
@@ -105,13 +107,13 @@ export default function BattleRoom() {
 
       if (cancelled) return;
       if (cqErr) {
-        setLoadError('Could not load question list: ' + cqErr.message);
+        setLoadError(t('battleLoadError', { message: cqErr.message }));
         setLoading(false);
         return;
       }
       const cqList = cqRows || [];
       if (cqList.length === 0) {
-        setLoadError('This room has no questions yet. Contact an admin.');
+        setLoadError(t('battleCannotStartNoQuestions'));
         setQuestionCount(0);
         setQuestions([]);
         setLoading(false);
@@ -126,7 +128,7 @@ export default function BattleRoom() {
 
       if (cancelled) return;
       if (qsErr || !qsRows?.length) {
-        setLoadError('Could not load question content. Check read access to `questions`.');
+          setLoadError(t('battleLoadError', { message: qsErr?.message || t('battleUnknownError') }));
         setLoading(false);
         return;
       }
@@ -153,7 +155,7 @@ export default function BattleRoom() {
     return () => {
       cancelled = true;
     };
-  }, [code, navigate]);
+  }, [code, navigate, t]);
 
   const roomClosed = competition?.status === 'closed';
 
@@ -166,16 +168,16 @@ export default function BattleRoom() {
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      alert('Room code copied: ' + code);
+      alert(t('battleRoomCopied', { code }));
     } catch {
-      alert('Copy failed. Room code: ' + code);
+      alert(t('battleCopyFailed', { code }));
     }
   };
 
   if (loading) {
     return (
       <div className="card text-center" style={{ padding: '3rem' }}>
-        Loading battle room...
+        {t('battleLoadingRoom')}
       </div>
     );
   }
@@ -187,26 +189,26 @@ export default function BattleRoom() {
       <div className="glass-card mb-6" style={{ padding: '1.25rem' }}>
         <div className="flex justify-between items-center" style={{ gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ margin: 0 }}>Battle room</h2>
+            <h2 style={{ margin: 0 }}>{t('battleRoomTitle')}</h2>
             <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 700, marginTop: '0.25rem' }}>
-              Code: <span style={{ fontWeight: 950, color: 'var(--text-primary)' }}>{competition.code}</span> • {questionCount} questions • {competition.time_limit_minutes} min
+              {t('battleCode')}: <span style={{ fontWeight: 950, color: 'var(--text-primary)' }}>{competition.code}</span> • {t('battleQuestionCount', { count: questionCount })} • {t('battleMinutes', { count: competition.time_limit_minutes })}
             </div>
           </div>
           <div className="flex gap-3">
             <button className="btn btn-secondary" onClick={copyCode} style={{ borderRadius: '999px' }}>
-              <Copy size={18} /> Copy code
+              <Copy size={18} /> {t('battleCopyCode')}
             </button>
             <button className="btn btn-secondary" onClick={() => navigate(`/battle/${competition.code}/ranking`)} style={{ borderRadius: '999px' }}>
-              <Trophy size={18} /> Ranking
+              <Trophy size={18} /> {t('battleRanking')}
             </button>
           </div>
         </div>
       </div>
 
       <div className="card" style={{ padding: '1.25rem' }}>
-        <div style={{ fontWeight: 900, marginBottom: '0.35rem' }}>How it works</div>
+        <div style={{ fontWeight: 900, marginBottom: '0.35rem' }}>{t('battleHowItWorks')}</div>
         <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, lineHeight: 1.5 }}>
-          Rooms are created by admins. Each account may take the exam <b>once</b> per room. After submitting, open <b>Ranking</b>.
+          {t('battleHowItWorksText')}
         </div>
 
         {loadError && (
@@ -217,13 +219,13 @@ export default function BattleRoom() {
 
         {roomClosed && (
           <div className="mt-4 p-3" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-md)', fontWeight: 700, color: '#991b1b' }}>
-            This room is closed — you cannot start a new attempt.
+            {t('battleRoomClosed')}
           </div>
         )}
 
         {alreadyPlayed && !roomClosed && (
           <div className="mt-4 p-3" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-md)', fontWeight: 700, color: '#1e40af' }}>
-            You already completed this room. One attempt per person.
+            {t('battleAlreadyPlayed')}
           </div>
         )}
 
@@ -234,7 +236,7 @@ export default function BattleRoom() {
             style={{ width: '100%', padding: '1rem', borderRadius: '999px' }}
             onClick={() => navigate(`/battle/${competition.code}/ranking`)}
           >
-            <Trophy size={18} /> View ranking
+            <Trophy size={18} /> {t('battleViewRankingBtn')}
           </button>
         )}
 
@@ -256,15 +258,15 @@ export default function BattleRoom() {
                 });
               }}
             >
-              <PlayCircle size={18} /> Start exam
+              <PlayCircle size={18} /> {t('battleStartExam')}
             </button>
             {!canStart && !roomClosed && (
               <p className="text-sm mt-3 text-center" style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
                 {loadError
-                  ? 'Fix the error above or contact an admin.'
+                  ? t('battleCannotStartFix')
                   : questions.length === 0
-                    ? 'No questions in this room yet.'
-                    : 'Cannot start (room closed or already attempted).'}
+                    ? t('battleCannotStartNoQuestions')
+                    : t('battleCannotStartDefault')}
               </p>
             )}
           </>

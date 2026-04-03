@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { formatAuthError } from '../lib/authErrors';
 import { upsertProfileForUserId } from '../lib/profile';
+import { useI18n } from '../i18n/I18nProvider';
 
 export default function Register() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,15 +19,13 @@ export default function Register() {
     setError(null);
 
     if (!isSupabaseConfigured()) {
-      setError(
-        'Supabase is not configured. Create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see .env.example), restart npm run dev, and try again.'
-      );
+      setError(t('registerSupabaseNotConfigured'));
       return;
     }
 
     const emailTrim = email.trim();
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError(t('registerPasswordShort'));
       return;
     }
 
@@ -52,7 +52,7 @@ export default function Register() {
     const uid = data.user?.id;
     if (!uid) {
       setLoading(false);
-      setError('Sign-up succeeded but no user id was returned. Try signing in.');
+      setError(t('registerNoUserId'));
       return;
     }
 
@@ -82,7 +82,7 @@ export default function Register() {
       replace: true,
       state: {
         message:
-          'If email confirmation is enabled, check your inbox and confirm. After you sign in, your profile will be created if it is still missing.',
+          t('registerEmailConfirmMessage'),
       },
     });
   };
@@ -90,9 +90,9 @@ export default function Register() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: '520px', margin: '0 auto' }}>
       <div className="glass-card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ marginBottom: '0.25rem' }}>Create account</h2>
+        <h2 style={{ marginBottom: '0.25rem' }}>{t('registerTitle')}</h2>
         <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '1rem' }}>
-          New accounts default to role <b>user</b>.
+          {t('registerSubtitle')}
         </div>
 
         {!isSupabaseConfigured() && (
@@ -109,7 +109,7 @@ export default function Register() {
               fontWeight: 600,
             }}
           >
-            Missing Supabase env vars. Copy .env.example to .env and set your project URL and anon key.
+            {t('registerMissingEnv')}
           </div>
         )}
 
@@ -134,22 +134,22 @@ export default function Register() {
 
         <form onSubmit={onSubmit} className="grid gap-4">
           <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>Full name</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder="Jane Doe" />
+            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('registerFullName')}</label>
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder={t('registerFullNamePlaceholder')} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>Email</label>
+            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('registerEmail')}</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
               required
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder={t('registerEmailPlaceholder')}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>Password</label>
+            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('registerPassword')}</label>
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -157,17 +157,17 @@ export default function Register() {
               required
               minLength={6}
               autoComplete="new-password"
-              placeholder="At least 6 characters"
+              placeholder={t('registerPasswordHint')}
             />
           </div>
 
           <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', borderRadius: '999px' }}>
-            {loading ? 'Creating...' : 'Create account'}
+            {loading ? t('registerCreating') : t('registerCreate')}
           </button>
         </form>
 
         <div className="text-sm" style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          Already have an account? <Link to="/login">Log in</Link>
+          {t('registerHaveAccount')} <Link to="/login">{t('registerSignIn')}</Link>
         </div>
       </div>
     </div>

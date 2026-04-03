@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { formatAuthError } from '../lib/authErrors';
 import { loadOrCreateProfile } from '../lib/profile';
+import { useI18n } from '../i18n/I18nProvider';
 
 function safeRedirectPath(from: string | undefined): string | null {
   if (!from || from === '/login' || from === '/register') return null;
@@ -10,6 +11,7 @@ function safeRedirectPath(from: string | undefined): string | null {
 }
 
 export default function Login() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as { from?: string; message?: string } | null;
@@ -32,7 +34,7 @@ export default function Login() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoading(false);
-      return alert('Signed in but user was not found. Try again.');
+      return alert(t('loginMissingUser'));
     }
 
     const profile = await loadOrCreateProfile(user);
@@ -48,9 +50,9 @@ export default function Login() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: '520px', margin: '0 auto' }}>
       <div className="glass-card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ marginBottom: '0.25rem' }}>Log in</h2>
+        <h2 style={{ marginBottom: '0.25rem' }}>{t('loginTitle')}</h2>
         <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '1rem' }}>
-          Sign in to take exams and view your history.
+          {t('loginSubtitle')}
         </div>
 
         {bannerMessage && (
@@ -73,21 +75,21 @@ export default function Login() {
 
         <form onSubmit={onSubmit} className="grid gap-4">
           <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@example.com" />
+            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('loginEmail')}</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder={t('loginEmailPlaceholder')} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>Password</label>
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder="••••••••" />
+            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('loginPassword')}</label>
+            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder={t('loginPasswordPlaceholder')} />
           </div>
 
           <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', borderRadius: '999px' }}>
-            {loading ? 'Signing in...' : 'Log in'}
+            {loading ? t('loginLoading') : t('loginButton')}
           </button>
         </form>
 
         <div className="text-sm" style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          No account? <Link to="/register">Create one</Link>
+          {t('loginNoAccount')} <Link to="/register">{t('loginCreateOne')}</Link>
         </div>
       </div>
     </div>

@@ -14,17 +14,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
-
-const navItems = [
-  { to: '/admin', end: true, label: 'Overview', icon: LayoutDashboard },
-  { to: '/admin/import', label: 'Import', icon: Upload },
-  { to: '/admin/bank', label: 'Question bank', icon: Database },
-  { to: '/admin/battle/create', label: 'Create battle room', icon: Swords },
-  { to: '/admin/battle/manage', label: 'Manage rooms', icon: ClipboardList }
-];
+import { useI18n } from '../i18n/I18nProvider';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function AdminLayout() {
+  const { t } = useI18n();
   const { profile, user, signOut } = useAuth();
+    const navItems = [
+      { to: '/admin', end: true, label: t('adminOverview'), icon: LayoutDashboard },
+      { to: '/admin/import', label: t('adminImport'), icon: Upload },
+      { to: '/admin/bank', label: t('adminQuestionBank'), icon: Database },
+      { to: '/admin/battle/create', label: t('adminCreateBattleRoom'), icon: Swords },
+      { to: '/admin/battle/manage', label: t('adminManageRooms'), icon: ClipboardList }
+    ];
+
   const [loggingOut, setLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -53,12 +56,12 @@ export default function AdminLayout() {
         <div className="admin-dashboard-brand">
           <Link to="/admin" className="admin-dashboard-logo" onClick={() => setMobileOpen(false)}>
             <BookOpen size={22} />
-            <span>Admin</span>
+            <span>{t('adminLabel')}</span>
           </Link>
           <button
             type="button"
             className="admin-dashboard-sidebar-close"
-            aria-label="Close menu"
+            aria-label={t('navCloseMenu')}
             onClick={() => setMobileOpen(false)}
           >
             <X size={22} />
@@ -82,7 +85,7 @@ export default function AdminLayout() {
 
         <div className="admin-dashboard-sidebar-footer">
           <Link to="/" className="admin-dashboard-back" onClick={() => setMobileOpen(false)}>
-            <ArrowLeft size={18} /> Student view
+            <ArrowLeft size={18} /> {t('adminStudentView')}
           </Link>
         </div>
       </aside>
@@ -91,7 +94,7 @@ export default function AdminLayout() {
         <button
           type="button"
           className="admin-dashboard-backdrop"
-          aria-label="Close menu"
+          aria-label={t('navCloseMenu')}
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -102,16 +105,17 @@ export default function AdminLayout() {
             <button
               type="button"
               className="admin-dashboard-menu-btn"
-              aria-label="Open menu"
+              aria-label={t('navOpenMenu')}
               onClick={() => setMobileOpen(true)}
             >
               <Menu size={22} />
             </button>
-            <h1 className="admin-dashboard-title">Dashboard</h1>
+            <h1 className="admin-dashboard-title">{t('adminDashboardTitle')}</h1>
           </div>
           <div className="admin-dashboard-header-right">
+            <LanguageSwitcher />
             <span className="admin-dashboard-user" title={profile?.full_name || user?.email || ''}>
-              {profile?.full_name || user?.email || 'Admin'}
+              {profile?.full_name || user?.email || t('adminLabel')}
             </span>
             <button
               type="button"
@@ -121,7 +125,7 @@ export default function AdminLayout() {
               disabled={loggingOut}
             >
               <LogOut size={18} />
-              {loggingOut ? 'Signing out…' : 'Sign out'}
+              {loggingOut ? t('navSigningOut') : t('navSignOut')}
             </button>
           </div>
         </header>

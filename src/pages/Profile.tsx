@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { UserRound, Save, Mail, Shield } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { supabase } from '../lib/supabase';
+import { useI18n } from '../i18n/I18nProvider';
 
 export default function Profile() {
   const { user, profile, role, refreshProfile } = useAuth();
+  const { t } = useI18n();
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -16,7 +18,7 @@ export default function Profile() {
     const nextName = fullName.trim();
     if (!user?.id) return;
     if (!nextName) {
-      alert('Please enter your full name.');
+      alert(t('profileEnterFullName'));
       return;
     }
 
@@ -32,12 +34,12 @@ export default function Profile() {
     setSaving(false);
 
     if (error) {
-      alert('Could not save profile: ' + error.message);
+      alert(t('profileSaveFailed', { message: error.message }));
       return;
     }
 
     await refreshProfile();
-    alert('Profile updated.');
+    alert(t('profileUpdated'));
   };
 
   return (
@@ -47,30 +49,30 @@ export default function Profile() {
           <UserRound size={30} />
         </div>
         <div>
-          <h2 style={{ marginBottom: '0.2rem' }}>My profile</h2>
-          <p className="text-muted" style={{ margin: 0 }}>Manage your account information.</p>
+          <h2 style={{ marginBottom: '0.2rem' }}>{t('profileTitle')}</h2>
+          <p className="text-muted" style={{ margin: 0 }}>{t('profileSubtitle')}</p>
         </div>
       </div>
 
       <div className="card profile-form-card">
         <div className="grid gap-4">
           <div>
-            <label className="profile-label">Full name</label>
+            <label className="profile-label">{t('profileFullName')}</label>
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Enter your full name"
+              placeholder={t('profileFullNamePlaceholder')}
             />
           </div>
 
           <div className="profile-info-grid">
             <div className="profile-info-chip">
               <Mail size={16} />
-              <span>{user?.email || 'No email'}</span>
+              <span>{user?.email || t('profileNoEmail')}</span>
             </div>
             <div className="profile-info-chip">
               <Shield size={16} />
-              <span>Role: {role || 'user'}</span>
+              <span>{t('profileRole', { role: role || 'user' })}</span>
             </div>
           </div>
 
@@ -82,7 +84,7 @@ export default function Profile() {
               disabled={saving}
               style={{ borderRadius: '999px' }}
             >
-              <Save size={17} /> {saving ? 'Saving...' : 'Save profile'}
+              <Save size={17} /> {saving ? t('profileSaving') : t('profileSave')}
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Clock, ChevronLeft, ChevronRight, Send, AlertCircle, LayoutGrid, Bookmark, StickyNote } from 'lucide-react';
+import { useI18n } from '../i18n/I18nProvider';
 
 type ProcessedQuestion = {
   id: string;
@@ -13,6 +14,7 @@ type ProcessedQuestion = {
 export default function ExamSession() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useI18n();
   
   const questions: ProcessedQuestion[] = location.state?.questions || [];
   const subjectId: string = location.state?.subjectId || '';
@@ -50,19 +52,19 @@ export default function ExamSession() {
         .eq('user_id', uid)
         .maybeSingle();
       if (cancelled || !existing) return;
-      alert('You already completed this battle room. One attempt per person.');
+      alert(t('battleAlreadyPlayed'));
       navigate(`/battle/${battleCode}/ranking`, { replace: true });
     })();
     return () => {
       cancelled = true;
     };
-  }, [competitionId, battleCode, questions.length, navigate]);
+  }, [competitionId, battleCode, questions.length, navigate, t]);
 
   useEffect(() => {
     if (questions.length === 0 || submitting) return;
     
     if (timeLeft <= 0) {
-      alert('Time is up! Submitting automatically.');
+        alert(t('examTimeUp'));
       handleSubmit(true);
       return;
     }
@@ -87,7 +89,7 @@ export default function ExamSession() {
         notes?: Record<string, string>;
         markedForReview?: Record<string, boolean>;
       };
-      const shouldRestore = window.confirm('Found a saved draft for this exam. Restore it?');
+      const shouldRestore = window.confirm(t('examDraftFound'));
       if (!shouldRestore) return;
 
       if (draft.answers) setAnswers(draft.answers);
@@ -118,9 +120,9 @@ export default function ExamSession() {
   if (questions.length === 0) {
     return (
       <div className="card text-center" style={{ padding: '4rem' }}>
-        <h2>No Active Exam</h2>
-        <p className="text-muted mb-4">Please generate an exam session first.</p>
-        <button onClick={() => navigate('/generate')} className="btn btn-primary">Go to Generator</button>
+        <h2>{t('examNoActive')}</h2>
+        <p className="text-muted mb-4">{t('examNoActiveHint')}</p>
+        <button onClick={() => navigate('/generate')} className="btn btn-primary">{t('examGoGenerator')}</button>
       </div>
     );
   }
@@ -146,14 +148,14 @@ export default function ExamSession() {
   };
 
   const handleSubmit = async (autoSubmit = false) => {
-    if (!autoSubmit && !confirm('Submit your answers now?')) return;
+    if (!autoSubmit && !confirm(t('examSubmitConfirm'))) return;
     
     setSubmitting(true);
 
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (userErr || !userId) {
-      alert('You must be signed in to submit.');
+      alert(t('examNeedSignIn'));
       setSubmitting(false);
       return;
     }
@@ -195,11 +197,11 @@ export default function ExamSession() {
       const code = (attemptError as { code?: string })?.code;
       const msg = attemptError?.message || '';
       if (code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
-        alert('You already submitted for this battle room. One attempt per person.');
+        alert(t('examDuplicateBattle'));
         if (battleCode) navigate(`/battle/${battleCode}/ranking`, { replace: true });
         else navigate('/history', { replace: true });
       } else {
-        alert('Error saving attempt: ' + msg);
+        alert(t('examSaveAttemptError', { message: msg }));
       }
       setSubmitting(false);
       return;
@@ -265,13 +267,13 @@ export default function ExamSession() {
         <div className="glass-card sticky z-10 mb-5 flex justify-between items-center" style={{ top: '1rem', padding: '1rem 1.25rem' }}>
           <div style={{ minWidth: 0 }}>
             <h3 className="mb-1" style={{ fontSize: '1.2rem', background: 'linear-gradient(90deg, #0f766e, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Taking exam
+              {t('examTitle')}
             </h3>
             <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              <span style={{ color: 'var(--primary-color)', fontWeight: 800 }}>{answeredCount}</span> answered • <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{unansweredCount}</span> unanswered
+              <span style={{ color: 'var(--primary-color)', fontWeight: 800 }}>{answeredCount}</span> {t('examAnswered')} • <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{unansweredCount}</span> {t('examUnanswered')}
             </div>
             <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              <span style={{ color: '#b45309', fontWeight: 800 }}>{markedCount}</span> marked for review
+              <span style={{ color: '#b45309', fontWeight: 800 }}>{markedCount}</span> {t('examMarkedReview')}
             </div>
           </div>
 
@@ -281,10 +283,10 @@ export default function ExamSession() {
               onClick={() => setNavOpen(v => !v)}
               type="button"
               style={{ padding: '0.6rem 0.9rem', borderRadius: '999px' }}
-              title="Open question navigator"
+              title={t('examOpenNavigator')}
             >
               <LayoutGrid size={18} />
-              <span className="hidden sm:inline">Questions</span>
+              <span className="hidden sm:inline">{t('examQuestions')}</span>
             </button>
 
             <div className="flex items-center gap-2" style={{ fontWeight: 800, fontSize: '1.4rem' }}>
@@ -299,7 +301,7 @@ export default function ExamSession() {
         {/* Progress */}
         <div className="mb-5">
           <div className="flex justify-between text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-            <span>Progress</span>
+            <span>{t('examProgress')}</span>
             <span>{Math.round(progressPercent)}%</span>
           </div>
           <div className="progress-track">
@@ -315,11 +317,11 @@ export default function ExamSession() {
               className="btn btn-secondary flex items-center gap-2"
               style={{ borderRadius: '99px', opacity: currentIndex === 0 ? 0.5 : 1 }}
             >
-              <ChevronLeft size={18} /> <span className="hidden sm:inline">Previous</span>
+              <ChevronLeft size={18} /> <span className="hidden sm:inline">{t('examPrevious')}</span>
             </button>
 
             <div className="exam-action-meta text-sm">
-              Question <strong>{currentIndex + 1}</strong> / {questions.length}
+              {t('examQuestionLabel')} <strong>{currentIndex + 1}</strong> / {questions.length}
             </div>
 
             <button
@@ -328,7 +330,7 @@ export default function ExamSession() {
               className="btn btn-primary flex items-center gap-2"
               style={{ borderRadius: '99px', opacity: currentIndex === questions.length - 1 ? 0.5 : 1 }}
             >
-              <span className="hidden sm:inline">Next</span> <ChevronRight size={18} />
+              <span className="hidden sm:inline">{t('examNext')}</span> <ChevronRight size={18} />
             </button>
 
             <button
@@ -337,7 +339,7 @@ export default function ExamSession() {
               className="btn exam-submit-btn flex items-center gap-2"
               style={{ borderRadius: '99px' }}
             >
-              {submitting ? 'Submitting...' : 'Submit'} <Send size={18} />
+              {submitting ? t('examSubmitting') : t('examSubmit')} <Send size={18} />
             </button>
           </div>
         </div>
@@ -358,8 +360,8 @@ export default function ExamSession() {
             <div className="mb-6 inline-flex items-center gap-2" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.4rem 1rem', borderRadius: '99px', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem' }}>
               <AlertCircle size={18} style={{ color: 'var(--primary-color)' }} />
               {currentQuestion.correct_options.length > 1 
-                  ? `Select ${currentQuestion.correct_options.length} answers` 
-                  : 'Select 1 answer'}
+                  ? t('examSelectAnswers', { count: currentQuestion.correct_options.length })
+                  : t('examSelectOne')}
             </div>
 
             <div className="mb-6">
@@ -369,7 +371,7 @@ export default function ExamSession() {
                 style={{ borderRadius: '999px' }}
                 onClick={() => toggleReviewMark(currentQuestion.id)}
               >
-                <Bookmark size={16} /> {markedForReview[currentQuestion.id] ? 'Marked for review' : 'Mark for review'}
+                <Bookmark size={16} /> {markedForReview[currentQuestion.id] ? t('examMarkedForReview') : t('examMarkForReview')}
               </button>
             </div>
 
@@ -384,7 +386,7 @@ export default function ExamSession() {
                     type="button"
                     className={`exam-qchip ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''} ${markedForReview[q.id] ? 'marked' : ''}`}
                     onClick={() => goToQuestion(idx)}
-                    title={isAnswered ? 'Answered' : 'Unanswered'}
+                    title={isAnswered ? t('examAnsweredTitle') : t('examUnansweredTitle')}
                   >
                     {idx + 1}
                   </button>
@@ -422,13 +424,13 @@ export default function ExamSession() {
 
             <div className="mt-6">
               <label className="profile-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                <StickyNote size={16} /> Personal note for this question
+                <StickyNote size={16} /> {t('examNoteTitle')}
               </label>
               <textarea
                 className="exam-note-area"
                 value={notes[currentQuestion.id] || ''}
                 onChange={(e) => setNotes((prev) => ({ ...prev, [currentQuestion.id]: e.target.value }))}
-                placeholder="Write your own reminder, hint, or formula here..."
+                placeholder={t('examNotePlaceholder')}
                 rows={3}
               />
             </div>
@@ -437,18 +439,18 @@ export default function ExamSession() {
           {/* Desktop navigator */}
           <aside className={`glass-card exam-nav ${navOpen ? 'open' : ''}`}>
             <div className="flex justify-between items-center mb-4">
-              <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>Questions</div>
+              <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{t('examQuestions')}</div>
               <button className="btn btn-secondary exam-nav-close" type="button" onClick={() => setNavOpen(false)} style={{ padding: '0.4rem 0.7rem', borderRadius: '999px' }}>
-                Close
+                {t('examClose')}
               </button>
             </div>
 
             <div className="text-sm mb-3" style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
-              <span style={{ color: 'var(--primary-color)', fontWeight: 900 }}>{answeredCount}</span> answered • {unansweredCount} unanswered
+              <span style={{ color: 'var(--primary-color)', fontWeight: 900 }}>{answeredCount}</span> {t('examAnswered')} • {unansweredCount} {t('examUnanswered')}
             </div>
 
             <div className="text-sm mb-3" style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
-              <span style={{ color: '#b45309', fontWeight: 900 }}>{markedCount}</span> marked for review
+              <span style={{ color: '#b45309', fontWeight: 900 }}>{markedCount}</span> {t('examMarkedReview')}
             </div>
 
             <div className="exam-nav-grid">
@@ -461,7 +463,7 @@ export default function ExamSession() {
                     type="button"
                     className={`exam-nav-item ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''} ${markedForReview[q.id] ? 'marked' : ''}`}
                     onClick={() => goToQuestion(idx)}
-                    title={isAnswered ? 'Answered' : 'Unanswered'}
+                    title={isAnswered ? t('examAnsweredTitle') : t('examUnansweredTitle')}
                   >
                     {idx + 1}
                   </button>
@@ -471,7 +473,7 @@ export default function ExamSession() {
 
             <div className="mt-4">
               <div className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.4, fontWeight: 600 }}>
-                Tip: tap a number to jump to that question. Submit is in the bottom bar.
+                {t('examTip')}
               </div>
             </div>
           </aside>

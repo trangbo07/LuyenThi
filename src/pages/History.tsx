@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import type { Attempt } from '../types/database.types';
 import { Clock, Eye, Search, Trophy } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
+import PaginationControls from '../components/PaginationControls';
+import { useI18n } from '../i18n/I18nProvider';
 
 type AttemptRow = Attempt & {
   subjects?: Array<{ code: string; name: string }> | null;
@@ -19,10 +21,13 @@ function formatDateTime(iso?: string) {
 
 export default function History() {
   const { user, role } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [rows, setRows] = useState<AttemptRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +47,7 @@ export default function History() {
       if (cancelled) return;
 
       if (error) {
-        alert('Could not load attempt history: ' + error.message);
+        alert(t('battleLoadRoomsError', { message: error.message }));
         setRows([]);
         setLoading(false);
         return;
@@ -55,7 +60,7 @@ export default function History() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, role]);
+  }, [user?.id, role, t]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -69,24 +74,33 @@ export default function History() {
     });
   }, [rows, query]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [query]);
+
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1100px', margin: '0 auto' }}>
-      <div className="glass-card mb-6" style={{ padding: '1.25rem' }}>
-        <div className="flex justify-between items-center" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+    <div className="animate-fade-in history-page" style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      <div className="glass-card mb-6 history-hero" style={{ padding: '1.25rem' }}>
+        <div className="flex justify-between items-center history-hero-row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ margin: 0 }}>Attempt history</h2>
+            <h2 style={{ margin: 0 }}>{t('historyTitle')}</h2>
             <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 600, marginTop: '0.25rem' }}>
-              Review your past submissions.
+              {t('historySubtitle')}
             </div>
           </div>
 
-          <div style={{ width: 'min(440px, 100%)' }}>
-            <div className="flex items-center gap-2" style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '999px', padding: '0.4rem 0.8rem' }}>
+          <div className="history-search-wrap" style={{ width: 'min(440px, 100%)' }}>
+            <div className="flex items-center gap-2 history-search-box" style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: '999px', padding: '0.4rem 0.8rem' }}>
               <Search size={18} color="var(--text-secondary)" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by subject or score..."
+                placeholder={t('historySearchPlaceholder')}
                 style={{ border: 'none', outline: 'none', padding: '0.35rem 0.25rem' }}
               />
             </div>
@@ -96,47 +110,47 @@ export default function History() {
 
       {loading && (
         <div className="card text-center" style={{ padding: '3rem' }}>
-          Loading history...
+          {t('historyLoading')}
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
         <div className="card text-center" style={{ padding: '3rem' }}>
-          <div style={{ fontWeight: 800, marginBottom: '0.25rem' }}>No history yet</div>
-          <div className="text-muted">Generate an exam and submit to see attempts here.</div>
+          <div style={{ fontWeight: 800, marginBottom: '0.25rem' }}>{t('historyEmptyTitle')}</div>
+          <div className="text-muted">{t('historyEmptyHint')}</div>
           <button className="btn btn-primary mt-6" onClick={() => navigate('/generate')}>
-            Generate & start
+            {t('historyGenerateStart')}
           </button>
         </div>
       )}
 
       {!loading && filtered.length > 0 && (
-        <div className="grid gap-6">
-          {filtered.map((a) => {
+        <div className="grid gap-6 history-list">
+          {pagedRows.map((a) => {
             const s0 = a.subjects?.[0];
             const subjectLabel = s0 ? `${s0.code} - ${s0.name}` : a.subject_id;
             const isPassing = Number(a.score) >= 5;
             return (
-              <div key={a.id} className="card" style={{ borderLeft: `6px solid ${isPassing ? 'var(--success-color)' : 'var(--error-color)'}` }}>
-                <div className="flex justify-between items-start" style={{ gap: '1rem', flexWrap: 'wrap' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 950, fontSize: '1.05rem', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div key={a.id} className="card history-card" style={{ borderLeft: `6px solid ${isPassing ? 'var(--success-color)' : 'var(--error-color)'}` }}>
+                <div className="flex justify-between items-start history-card-row" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+                  <div className="history-card-main" style={{ minWidth: 0 }}>
+                    <div className="history-subject" style={{ fontWeight: 950, fontSize: '1.05rem', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {subjectLabel}
                     </div>
-                    <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="text-sm history-meta" style={{ color: 'var(--text-secondary)', fontWeight: 650, display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Clock size={16} /> {formatDateTime(a.created_at)}
                       </span>
-                      <span>•</span>
+                      <span className="history-dot">•</span>
                       <span>
-                        Correct <span style={{ fontWeight: 900, color: 'var(--text-primary)' }}>{a.correct_answers}</span>/{a.total_questions}
+                        {t('resultCorrect')} <span style={{ fontWeight: 900, color: 'var(--text-primary)' }}>{a.correct_answers}</span>/{a.total_questions}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 800 }}>Score</div>
+                  <div className="flex items-center gap-3 history-actions" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <div className="history-score" style={{ textAlign: 'right' }}>
+                      <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 800 }}>{t('resultScore')}</div>
                       <div style={{ fontWeight: 950, fontSize: '1.6rem', color: isPassing ? '#065f46' : '#991b1b' }}>
                         {Number(a.score).toFixed(2)}
                       </div>
@@ -144,27 +158,37 @@ export default function History() {
                     {a.competition_id && a.competitions?.code && (
                       <button
                         type="button"
-                        className="btn btn-primary"
+                        className="btn btn-primary history-btn"
                         onClick={() => navigate(`/battle/${a.competitions!.code}/ranking`)}
                         style={{ borderRadius: '999px' }}
-                        title="Battle room ranking"
+                        title={t('battleViewRanking')}
                       >
-                        <Trophy size={18} /> Ranking
+                        <Trophy size={18} /> {t('battleRanking')}
                       </button>
                     )}
                     <button
-                      className="btn btn-secondary"
+                      className="btn btn-secondary history-btn"
                       onClick={() => navigate(`/attempt/${a.id}`)}
                       style={{ borderRadius: '999px' }}
-                      title="View review"
+                      title={t('resultAnswerReview')}
                     >
-                      <Eye size={18} /> View
+                      <Eye size={18} /> {t('resultAnswerReview')}
                     </button>
                   </div>
                 </div>
               </div>
             );
           })}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            totalItems={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </div>
       )}
     </div>
