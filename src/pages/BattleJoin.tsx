@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink, RefreshCw, Trophy } from 'lucide-react';
+import { ExternalLink, RefreshCw, Trophy, Star, Search, Swords, Clock3, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function BattleJoin() {
@@ -14,6 +14,21 @@ export default function BattleJoin() {
     subjects?: { code: string; name: string } | { code: string; name: string }[] | null;
   }>>([]);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('battle_favorite_codes');
+      const parsed = JSON.parse(raw || '[]');
+      return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showFavOnly, setShowFavOnly] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('battle_favorite_codes', JSON.stringify(favorites));
+  }, [favorites]);
 
   const subjectLabel = useCallback((r: {
     subjects?: { code: string; name: string } | { code: string; name: string }[] | null;
@@ -50,27 +65,81 @@ export default function BattleJoin() {
 
   const latestCode = useMemo(() => (rooms.length > 0 ? rooms[0].code : null), [rooms]);
 
-  return (
-    <div className="animate-fade-in" style={{ maxWidth: '520px', margin: '0 auto' }}>
-      <div className="glass-card" style={{ padding: '1.5rem' }}>
-        <div className="flex justify-between items-start gap-3" style={{ flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ marginBottom: '0.25rem' }}>Join a battle room</h2>
-            <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, marginBottom: '1rem', lineHeight: 1.5 }}>
-              Pick an open room below to enter the exam and view the ranking.
-            </div>
-          </div>
+  const filteredRooms = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rooms.filter((r) => {
+      const byFav = !showFavOnly || favorites.includes(r.code);
+      if (!byFav) return false;
+      if (!q) return true;
+      const subject = subjectLabel(r).toLowerCase();
+      return r.code.toLowerCase().includes(q) || subject.includes(q);
+    });
+  }, [rooms, showFavOnly, favorites, query, subjectLabel]);
 
+  const toggleFavorite = (code: string) => {
+    setFavorites((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [code, ...prev]));
+  };
+
+  const favoriteCount = useMemo(() => rooms.filter((r) => favorites.includes(r.code)).length, [rooms, favorites]);
+
+  return (
+    <div className="animate-fade-in battle-join-shell">
+      <section className="battle-join-hero">
+        <div>
+          <div className="battle-join-kicker"><Swords size={15} /> Real-time battle practice</div>
+          <h2 style={{ marginBottom: '0.35rem' }}>Join a battle room</h2>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, lineHeight: 1.6, margin: 0, maxWidth: '66ch' }}>
+            Enter open rooms instantly, pin your favorite codes, and jump to ranking with a cleaner, faster workflow.
+          </p>
+        </div>
+
+        <div className="battle-join-hero-stats">
+          <article className="battle-hero-stat">
+            <div className="battle-hero-stat-label">Open rooms</div>
+            <div className="battle-hero-stat-value">{rooms.length}</div>
+          </article>
+          <article className="battle-hero-stat">
+            <div className="battle-hero-stat-label">Favorites</div>
+            <div className="battle-hero-stat-value">{favoriteCount}</div>
+          </article>
           <button
             type="button"
-            className="btn btn-secondary"
-            style={{ borderRadius: '999px' }}
+            className="btn btn-secondary battle-refresh-btn"
             onClick={() => void load()}
             disabled={loading}
             title="Refresh room list"
           >
-            <RefreshCw size={18} /> Refresh
+            <RefreshCw size={18} className={loading ? 'spin' : ''} /> Refresh
           </button>
+        </div>
+      </section>
+
+      <section className="glass-card battle-join-panel">
+        <div className="battle-filter-row">
+          <label className="battle-search-box" aria-label="Search rooms">
+            <Search size={16} color="var(--text-secondary)" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by code or subject"
+            />
+          </label>
+
+          <button
+            type="button"
+            className={`btn btn-secondary battle-filter-btn ${showFavOnly ? 'active' : ''}`}
+            onClick={() => setShowFavOnly((v) => !v)}
+          >
+            <Filter size={16} /> {showFavOnly ? 'Showing favorites' : 'Favorites only'}
+          </button>
+        </div>
+
+        <div className="battle-filter-meta text-sm">
+          {!loading && !error && (
+            <span>
+              Displaying <b>{filteredRooms.length}</b> / {rooms.length} room{rooms.length === 1 ? '' : 's'}
+            </span>
+          )}
         </div>
 
         {loading && (
@@ -91,29 +160,40 @@ export default function BattleJoin() {
           </div>
         )}
 
-        {!loading && rooms.length > 0 && (
-          <div className="grid gap-4">
-            {rooms.map((r) => (
+        {!loading && rooms.length > 0 && filteredRooms.length === 0 && (
+          <div className="card text-center" style={{ padding: '1.5rem 1rem' }}>
+            No rooms match your current filter.
+          </div>
+        )}
+
+        {!loading && filteredRooms.length > 0 && (
+          <div className="battle-room-grid">
+            {filteredRooms.map((r) => (
               <div
                 key={r.id}
-                className="card"
-                style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}
+                className="battle-room-card"
               >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 950, fontSize: '1.15rem', letterSpacing: '0.08em' }}>{r.code}</div>
-                  <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, marginTop: '0.25rem', lineHeight: 1.4 }}>
-                    Subject: {subjectLabel(r)}
+                <div style={{ minWidth: 0, flex: '1 1 300px' }}>
+                  <div className="flex items-center gap-2" style={{ flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+                    <div className="battle-room-code">{r.code}</div>
+                    {favorites.includes(r.code) && (
+                      <span className="battle-tag favorite">
+                        Favorite
+                      </span>
+                    )}
+                    <span className="battle-tag">
+                      <Clock3 size={13} /> {r.time_limit_minutes} min
+                    </span>
                   </div>
-                  <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, marginTop: '0.1rem' }}>
-                    Time limit: {r.time_limit_minutes} min
+                  <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 700, lineHeight: 1.4 }}>
+                    Subject: <span style={{ color: 'var(--text-primary)' }}>{subjectLabel(r)}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
+                <div className="battle-room-actions">
                   <button
                     type="button"
-                    className="btn btn-primary"
-                    style={{ borderRadius: '999px' }}
+                    className="btn btn-primary battle-enter-btn"
                     onClick={() => navigate(`/battle/${r.code}`)}
                     title="Enter room"
                   >
@@ -121,10 +201,17 @@ export default function BattleJoin() {
                   </button>
                   <button
                     type="button"
+                    className="btn btn-secondary battle-icon-btn"
+                    onClick={() => toggleFavorite(r.code)}
+                    title={favorites.includes(r.code) ? 'Remove favorite' : 'Add favorite'}
+                  >
+                    <Star size={16} fill={favorites.includes(r.code) ? 'currentColor' : 'none'} />
+                  </button>
+                  <button
+                    type="button"
                     className="btn btn-secondary"
-                    style={{ borderRadius: '999px' }}
                     onClick={() => navigate(`/battle/${r.code}/ranking`)}
-                    title="Xem ranking"
+                    title="View ranking"
                   >
                     <Trophy size={16} /> Ranking
                   </button>
@@ -135,11 +222,11 @@ export default function BattleJoin() {
         )}
 
         {latestCode && !loading && (
-          <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 650, marginTop: '1rem', lineHeight: 1.5 }}>
+          <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 700, marginTop: '1rem', lineHeight: 1.5 }}>
             Latest room: <b>{latestCode}</b>.
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

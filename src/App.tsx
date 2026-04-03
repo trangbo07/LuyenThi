@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X } from 'lucide-react';
+import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X, UserRound } from 'lucide-react';
 import Home from './pages/Home';
 import QuestionBank from './pages/QuestionBank';
 import ImportQuestions from './pages/Import';
@@ -21,6 +21,7 @@ import BattleRanking from './pages/BattleRanking';
 import BattleManage from './pages/BattleManage';
 import AdminLayout from './layouts/AdminLayout';
 import AdminHome from './pages/AdminHome';
+import Profile from './pages/Profile';
 
 function Nav() {
   const { user, profile, role, signOut } = useAuth();
@@ -90,6 +91,7 @@ function Nav() {
                 <Link to="/generate" className="nav-item flex items-center gap-2"><PlayCircle size={18} /> Exam</Link>
                 <Link to="/history" className="nav-item flex items-center gap-2"><HistoryIcon size={18} /> History</Link>
                 <Link to="/battle/join" className="nav-item flex items-center gap-2"><Swords size={18} /> Join battle</Link>
+                <Link to="/profile" className="nav-item flex items-center gap-2"><UserRound size={18} /> Profile</Link>
               </>
             )}
             {!user ? (
@@ -137,6 +139,7 @@ function Nav() {
               <Link to="/generate" className={navLinkClass} onClick={closeMenu}><PlayCircle size={20} /> Exam</Link>
               <Link to="/history" className={navLinkClass} onClick={closeMenu}><HistoryIcon size={20} /> History</Link>
               <Link to="/battle/join" className={navLinkClass} onClick={closeMenu}><Swords size={20} /> Join battle</Link>
+              <Link to="/profile" className={navLinkClass} onClick={closeMenu}><UserRound size={20} /> Profile</Link>
             </>
           )}
           {!user ? (
@@ -203,6 +206,7 @@ function AppShell() {
           <Route path="/exam" element={<RequireAuth allowRoles={['admin', 'user']}><ExamSession /></RequireAuth>} />
           <Route path="/result" element={<RequireAuth allowRoles={['admin', 'user']}><Result /></RequireAuth>} />
           <Route path="/history" element={<RequireAuth allowRoles={['admin', 'user']}><History /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth allowRoles={['admin', 'user']}><Profile /></RequireAuth>} />
           <Route path="/attempt/:id" element={<RequireAuth allowRoles={['admin', 'user']}><AttemptReview /></RequireAuth>} />
           <Route path="/battle/join" element={<RequireAuth allowRoles={['admin', 'user']}><BattleJoin /></RequireAuth>} />
           <Route path="/import" element={<Navigate to="/admin/import" replace />} />

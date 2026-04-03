@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Clock, ChevronLeft, ChevronRight, Send, AlertCircle, LayoutGrid } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Send, AlertCircle, LayoutGrid, Bookmark, StickyNote } from 'lucide-react';
 
 type ProcessedQuestion = {
   id: string;
@@ -26,6 +26,14 @@ export default function ExamSession() {
   const [timeLeft, setTimeLeft] = useState(timeLimit * 60);
   const [navOpen, setNavOpen] = useState(false);
   const [startedAt] = useState(() => Date.now());
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  const draftKey = useMemo(() => {
+    const id = competitionId || `subject-${subjectId || 'unknown'}-q${questions.length}`;
+    return `exam_draft_${id}`;
+  }, [competitionId, subjectId, questions.length]);
 
   // Battle: block retake if an attempt already exists (one per user)
   useEffect(() => {
@@ -66,6 +74,47 @@ export default function ExamSession() {
     return () => clearInterval(timerId);
   }, [timeLeft, submitting, questions.length]);
 
+  useEffect(() => {
+    if (questions.length === 0 || draftLoaded) return;
+    setDraftLoaded(true);
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        answers?: Record<string, string[]>;
+        currentIndex?: number;
+        timeLeft?: number;
+        notes?: Record<string, string>;
+        markedForReview?: Record<string, boolean>;
+      };
+      const shouldRestore = window.confirm('Found a saved draft for this exam. Restore it?');
+      if (!shouldRestore) return;
+
+      if (draft.answers) setAnswers(draft.answers);
+      if (typeof draft.currentIndex === 'number') {
+        setCurrentIndex(Math.min(Math.max(0, draft.currentIndex), Math.max(0, questions.length - 1)));
+      }
+      if (typeof draft.timeLeft === 'number' && draft.timeLeft > 0) setTimeLeft(draft.timeLeft);
+      if (draft.notes) setNotes(draft.notes);
+      if (draft.markedForReview) setMarkedForReview(draft.markedForReview);
+    } catch {
+      localStorage.removeItem(draftKey);
+    }
+  }, [questions.length, draftLoaded, draftKey]);
+
+  useEffect(() => {
+    if (questions.length === 0 || submitting) return;
+    const payload = {
+      answers,
+      currentIndex,
+      timeLeft,
+      notes,
+      markedForReview,
+      savedAt: Date.now()
+    };
+    localStorage.setItem(draftKey, JSON.stringify(payload));
+  }, [answers, currentIndex, timeLeft, notes, markedForReview, questions.length, submitting, draftKey]);
+
   if (questions.length === 0) {
     return (
       <div className="card text-center" style={{ padding: '4rem' }}>
@@ -90,6 +139,10 @@ export default function ExamSession() {
         : [...current, label];
       return { ...prev, [qId]: updated };
     });
+  };
+
+  const toggleReviewMark = (qId: string) => {
+    setMarkedForReview((prev) => ({ ...prev, [qId]: !prev[qId] }));
   };
 
   const handleSubmit = async (autoSubmit = false) => {
@@ -158,6 +211,7 @@ export default function ExamSession() {
     }));
 
     await supabase.from('attempt_answers').insert(answersToInsert);
+    localStorage.removeItem(draftKey);
 
     navigate('/result', {
       state: {
@@ -176,24 +230,48 @@ export default function ExamSession() {
   const progressPercent = (answeredCount / questions.length) * 100;
   const isTimeCritical = timeLeft < 300; // Less than 5 mins
   const unansweredCount = questions.length - answeredCount;
+  const markedCount = useMemo(() => Object.keys(markedForReview).filter((k) => markedForReview[k]).length, [markedForReview]);
+
+  useEffect(() => {
+    const warnBeforeClose = (e: BeforeUnloadEvent) => {
+      if (submitting || questions.length === 0) return;
+      if (answeredCount === 0) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', warnBeforeClose);
+    return () => window.removeEventListener('beforeunload', warnBeforeClose);
+  }, [submitting, questions.length, answeredCount]);
 
   const goToQuestion = (idx: number) => {
     setCurrentIndex(Math.min(Math.max(0, idx), questions.length - 1));
     setNavOpen(false);
   };
 
+  const goPrev = () => {
+    setCurrentIndex((prev) => Math.max(0, prev - 1));
+  };
+
+  const goNext = () => {
+    setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1));
+  };
+
   return (
-    <div className="animate-fade-in exam-wrapper" style={{ margin: '-2rem -1.5rem 0', padding: '2rem 1.5rem 120px', minHeight: 'calc(100vh - 60px)' }}>
+    <div className="animate-fade-in exam-wrapper" style={{ margin: '-2rem -1.5rem 0', padding: '2rem 1.5rem 2rem', minHeight: 'calc(100vh - 60px)' }}>
       <div className="exam-shell" style={{ maxWidth: '1100px', margin: '0 auto' }}>
         
         {/* Header */}
         <div className="glass-card sticky z-10 mb-5 flex justify-between items-center" style={{ top: '1rem', padding: '1rem 1.25rem' }}>
           <div style={{ minWidth: 0 }}>
-            <h3 className="mb-1" style={{ fontSize: '1.2rem', background: 'linear-gradient(90deg, #4F46E5, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <h3 className="mb-1" style={{ fontSize: '1.2rem', background: 'linear-gradient(90deg, #0f766e, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               Taking exam
             </h3>
             <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
               <span style={{ color: 'var(--primary-color)', fontWeight: 800 }}>{answeredCount}</span> answered • <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{unansweredCount}</span> unanswered
+            </div>
+            <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+              <span style={{ color: '#b45309', fontWeight: 800 }}>{markedCount}</span> marked for review
             </div>
           </div>
 
@@ -229,6 +307,41 @@ export default function ExamSession() {
           </div>
         </div>
 
+        <div className="glass-card exam-action-bar mb-5">
+          <div className="exam-action-row">
+            <button
+              onClick={goPrev}
+              disabled={currentIndex === 0}
+              className="btn btn-secondary flex items-center gap-2"
+              style={{ borderRadius: '99px', opacity: currentIndex === 0 ? 0.5 : 1 }}
+            >
+              <ChevronLeft size={18} /> <span className="hidden sm:inline">Previous</span>
+            </button>
+
+            <div className="exam-action-meta text-sm">
+              Question <strong>{currentIndex + 1}</strong> / {questions.length}
+            </div>
+
+            <button
+              onClick={goNext}
+              disabled={currentIndex === questions.length - 1}
+              className="btn btn-primary flex items-center gap-2"
+              style={{ borderRadius: '99px', opacity: currentIndex === questions.length - 1 ? 0.5 : 1 }}
+            >
+              <span className="hidden sm:inline">Next</span> <ChevronRight size={18} />
+            </button>
+
+            <button
+              onClick={() => handleSubmit()}
+              disabled={submitting}
+              className="btn exam-submit-btn flex items-center gap-2"
+              style={{ borderRadius: '99px' }}
+            >
+              {submitting ? 'Submitting...' : 'Submit'} <Send size={18} />
+            </button>
+          </div>
+        </div>
+
         <div className="exam-grid">
           {/* Question Card */}
           <div className="glass-card p-8 mb-6 relative exam-main">
@@ -249,6 +362,17 @@ export default function ExamSession() {
                   : 'Select 1 answer'}
             </div>
 
+            <div className="mb-6">
+              <button
+                type="button"
+                className={`btn btn-secondary ${markedForReview[currentQuestion.id] ? 'result-filter active' : ''}`}
+                style={{ borderRadius: '999px' }}
+                onClick={() => toggleReviewMark(currentQuestion.id)}
+              >
+                <Bookmark size={16} /> {markedForReview[currentQuestion.id] ? 'Marked for review' : 'Mark for review'}
+              </button>
+            </div>
+
             {/* Mobile quick navigator */}
             <div className="exam-qchips mb-6">
               {questions.map((q, idx) => {
@@ -258,7 +382,7 @@ export default function ExamSession() {
                   <button
                     key={q.id}
                     type="button"
-                    className={`exam-qchip ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''}`}
+                    className={`exam-qchip ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''} ${markedForReview[q.id] ? 'marked' : ''}`}
                     onClick={() => goToQuestion(idx)}
                     title={isAnswered ? 'Answered' : 'Unanswered'}
                   >
@@ -295,6 +419,19 @@ export default function ExamSession() {
                 );
               })}
             </div>
+
+            <div className="mt-6">
+              <label className="profile-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <StickyNote size={16} /> Personal note for this question
+              </label>
+              <textarea
+                className="exam-note-area"
+                value={notes[currentQuestion.id] || ''}
+                onChange={(e) => setNotes((prev) => ({ ...prev, [currentQuestion.id]: e.target.value }))}
+                placeholder="Write your own reminder, hint, or formula here..."
+                rows={3}
+              />
+            </div>
           </div>
 
           {/* Desktop navigator */}
@@ -310,6 +447,10 @@ export default function ExamSession() {
               <span style={{ color: 'var(--primary-color)', fontWeight: 900 }}>{answeredCount}</span> answered • {unansweredCount} unanswered
             </div>
 
+            <div className="text-sm mb-3" style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+              <span style={{ color: '#b45309', fontWeight: 900 }}>{markedCount}</span> marked for review
+            </div>
+
             <div className="exam-nav-grid">
               {questions.map((q, idx) => {
                 const isAnswered = (answers[q.id] || []).length > 0;
@@ -318,7 +459,7 @@ export default function ExamSession() {
                   <button
                     key={q.id}
                     type="button"
-                    className={`exam-nav-item ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''}`}
+                    className={`exam-nav-item ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''} ${markedForReview[q.id] ? 'marked' : ''}`}
                     onClick={() => goToQuestion(idx)}
                     title={isAnswered ? 'Answered' : 'Unanswered'}
                   >
@@ -334,40 +475,6 @@ export default function ExamSession() {
               </div>
             </div>
           </aside>
-        </div>
-
-        {/* Bottom Navigation */}
-        <div className="glass-header exam-bottom-bar fixed bottom-0 left-0 right-0 p-4 z-20">
-           <div className="flex items-center" style={{ maxWidth: '1100px', margin: '0 auto', justifyContent: 'space-between' }}>
-              <div className="flex gap-3" style={{ alignItems: 'center' }}>
-                <button 
-                  onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))} 
-                  disabled={currentIndex === 0}
-                  className="btn btn-secondary flex items-center gap-2"
-                  style={{ padding: '0.75rem 1.25rem', borderRadius: '99px', opacity: currentIndex === 0 ? 0.5 : 1 }}
-                >
-                  <ChevronLeft size={20} /> <span className="hidden sm:inline">Previous</span>
-                </button>
-                
-                <button 
-                  onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))} 
-                  disabled={currentIndex === questions.length - 1}
-                  className="btn btn-primary flex items-center gap-2"
-                  style={{ padding: '0.75rem 1.25rem', borderRadius: '99px', opacity: currentIndex === questions.length - 1 ? 0.5 : 1 }}
-                >
-                  <span className="hidden sm:inline">Next</span> <ChevronRight size={20} />
-                </button>
-              </div>
-              
-              <button 
-                onClick={() => handleSubmit()} 
-                disabled={submitting} 
-                className="btn flex items-center gap-2" 
-                style={{ background: 'var(--success-color)', color: '#fff', padding: '0.75rem 2rem', fontWeight: 700, borderRadius: '99px', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)', transition: 'all 0.3s ease' }}
-              >
-                {submitting ? 'Submitting...' : 'Submit'} <Send size={20} />
-              </button>
-           </div>
         </div>
 
       </div>
