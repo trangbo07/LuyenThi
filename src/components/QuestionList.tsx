@@ -83,7 +83,31 @@ export default function QuestionList() {
     }
 
     if (cleanKeyword) {
-      q = q.ilike('question_text', `%${cleanKeyword}%`);
+      const normalizedKeyword = cleanKeyword.toLowerCase();
+      const { data, error } = await q;
+
+      if (error) {
+        alert(t('qlLoadQuestionsError', { message: error.message }));
+        setQuestions([]);
+        setTotalItems(0);
+        setLoading(false);
+        return;
+      }
+
+      const filtered = (data || []).filter((question) => {
+        const answerText = (question.options || []).join(' ').toLowerCase();
+        const correctLabels = (question.correct_options || []).join(' ').toLowerCase();
+        return (
+          question.question_text.toLowerCase().includes(normalizedKeyword) ||
+          answerText.includes(normalizedKeyword) ||
+          correctLabels.includes(normalizedKeyword)
+        );
+      });
+
+      setTotalItems(filtered.length);
+      setQuestions(filtered.slice(from, to + 1));
+      setLoading(false);
+      return;
     }
 
     const { data, count, error } = await q.range(from, to);
