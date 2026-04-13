@@ -1,15 +1,19 @@
 import { useI18n } from '../i18n/I18nProvider';
 
-export default function LanguageSwitcher() {
+type LanguageSwitcherProps = {
+  compact?: boolean;
+};
+
+export default function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
   const { language, setLanguage, t } = useI18n();
 
   return (
-    <label className="text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-      {t('langLabel')}
+    <label className={`lang-switcher ${compact ? 'lang-switcher--compact' : ''}`}>
+      <span className="lang-switcher-label">{t('langLabel')}</span>
       <select
         value={language}
         onChange={(e) => setLanguage(e.target.value as 'en' | 'vi')}
-        style={{ width: 'auto', minWidth: '120px', padding: '0.4rem 0.55rem' }}
+        className="lang-switcher-select"
       >
         <option value="en">{t('langEnglish')}</option>
         <option value="vi">{t('langVietnamese')}</option>

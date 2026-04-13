@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { Subject, ExamSession, Question } from '../types/database.types';
 import PaginationControls from './PaginationControls';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from './Toast';
 
 type ConfusionAlert = {
   id: string;
@@ -55,6 +56,7 @@ function textSimilarity(a: string, b: string) {
 
 export default function QuestionConfusionChecker() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -85,7 +87,7 @@ export default function QuestionConfusionChecker() {
       const { data: subjectSessions, error: sessionError } = await sessionQuery;
 
       if (sessionError) {
-        alert(t('qcLoadSessionsError', { message: sessionError.message }));
+        toast(t('qcLoadSessionsError', { message: sessionError.message }), 'error');
         setAlerts([]);
         setLoading(false);
         return;
@@ -117,7 +119,7 @@ export default function QuestionConfusionChecker() {
         .in('session_id', sessionIds);
 
       if (questionError || !subjectQuestions) {
-        alert(t('qcLoadQuestionsError'));
+        toast(t('qcLoadQuestionsError'), 'error');
         setAlerts([]);
         setLoading(false);
         return;

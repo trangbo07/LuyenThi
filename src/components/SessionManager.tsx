@@ -4,9 +4,11 @@ import type { ExamSession, Subject } from '../types/database.types';
 import { Trash2, Plus } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from './Toast';
 
 export default function SessionManager() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [sessions, setSessions] = useState<(ExamSession & { subjects?: Subject })[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectId, setSubjectId] = useState('');
@@ -46,7 +48,7 @@ export default function SessionManager() {
       setName('');
       fetchSessions();
     } else {
-      alert(t('sessionAddError', { message: error.message }));
+      toast(t('sessionAddError', { message: error.message }), 'error');
     }
   };
 
@@ -56,7 +58,7 @@ export default function SessionManager() {
     if (!error) {
       fetchSessions();
     } else {
-      alert(t('sessionDeleteError', { message: error.message }));
+      toast(t('sessionDeleteError', { message: error.message }), 'error');
     }
   };
 

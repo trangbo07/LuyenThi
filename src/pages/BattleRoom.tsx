@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { shuffleSeeded } from '../lib/seedShuffle';
 import { Copy, PlayCircle, Trophy } from 'lucide-react';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
 
 type DbCompetition = {
   id: string;
@@ -31,6 +32,7 @@ export default function BattleRoom() {
   const { code } = useParams();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [competition, setCompetition] = useState<DbCompetition | null>(null);
   const [questions, setQuestions] = useState<ProcessedQuestion[]>([]);
@@ -62,7 +64,7 @@ export default function BattleRoom() {
       if (cancelled) return;
       if (compErr || !comp) {
         setLoading(false);
-        alert(t('battleRoomNotFound'));
+        toast(t('battleRoomNotFound'), 'error');
         navigate('/battle/join');
         return;
       }
@@ -168,9 +170,9 @@ export default function BattleRoom() {
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      alert(t('battleRoomCopied', { code }));
+      toast(t('battleRoomCopied', { code }), 'success');
     } catch {
-      alert(t('battleCopyFailed', { code }));
+      toast(t('battleCopyFailed', { code }), 'info');
     }
   };
 

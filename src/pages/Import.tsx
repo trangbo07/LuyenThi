@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import type { Subject, ExamSession } from '../types/database.types';
 import PaginationControls from '../components/PaginationControls';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
 
 type ParsedQuestion = {
   id: string; // temp id for UI
@@ -15,6 +16,7 @@ type ParsedQuestion = {
 
 export default function ImportQuestions() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -80,7 +82,7 @@ export default function ImportQuestions() {
       });
       setText(prev => prev + (prev ? '\n\n' : '') + result.data.text);
     } catch (err) {
-      alert(t('importOcrError', { message: JSON.stringify(err) }));
+      toast(t('importOcrError', { message: JSON.stringify(err) }), 'error');
     } finally {
       setLoading(false);
     }
@@ -171,12 +173,12 @@ export default function ImportQuestions() {
   };
 
   const handleSave = async () => {
-    if (!sessionId) return alert(t('importSelectSessionFirst'));
-    if (parsed.length === 0) return alert(t('importNoQuestionsSave'));
+    if (!sessionId) { toast(t('importSelectSessionFirst'), 'warning'); return; }
+    if (parsed.length === 0) { toast(t('importNoQuestionsSave'), 'warning'); return; }
     
     // Validation
     const invalid = parsed.find(p => !p.question_text || p.options.length < 2 || p.options.some(o => !o.trim()) || p.correct_options.length === 0);
-    if (invalid) return alert(t('importValidationError'));
+    if (invalid) { toast(t('importValidationError'), 'warning'); return; }
 
     setSaving(true);
     const inserts = parsed.map(p => ({
@@ -190,12 +192,12 @@ export default function ImportQuestions() {
     setSaving(false);
     
     if (!error) {
-      alert(t('importSaveSuccess'));
+      toast(t('importSaveSuccess'), 'success');
       setParsed([]);
       setText('');
       setPage(1);
     } else {
-      alert(t('importSaveError', { message: error.message }));
+      toast(t('importSaveError', { message: error.message }), 'error');
     }
   };
 

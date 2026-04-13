@@ -4,9 +4,11 @@ import type { Subject, ExamSession, Question } from '../types/database.types';
 import { Trash2, Edit2, Plus } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from './Toast';
 
 export default function QuestionList() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -55,7 +57,7 @@ export default function QuestionList() {
         .eq('subject_id', selectedSubject);
 
       if (sessionsError) {
-        alert(t('qlLoadSessionsError', { message: sessionsError.message }));
+        toast(t('qlLoadSessionsError', { message: sessionsError.message }), 'error');
         setQuestions([]);
         setTotalItems(0);
         setLoading(false);
@@ -88,7 +90,7 @@ export default function QuestionList() {
 
     const { data, count, error } = await q.range(from, to);
     if (error) {
-      alert(t('qlLoadQuestionsError', { message: error.message }));
+      toast(t('qlLoadQuestionsError', { message: error.message }), 'error');
       setQuestions([]);
       setTotalItems(0);
       setLoading(false);
@@ -137,7 +139,7 @@ export default function QuestionList() {
     if (!error) {
       fetchQuestions(selectedSession || undefined);
     } else {
-      alert(t('qlDeleteError', { message: error?.message || '' }));
+      toast(t('qlDeleteError', { message: error?.message || '' }), 'error');
     }
   };
 
@@ -154,7 +156,7 @@ export default function QuestionList() {
   const handleSaveEdit = async () => {
     if (!editFormData) return;
     if (editFormData.options.length < 2 || editFormData.options.some(o => !o.trim())) {
-      return alert(t('qlOptionsValidationError'));
+      { toast(t('qlOptionsValidationError'), 'warning'); return; }
     }
 
     const { error } = await supabase.from('questions').update({
@@ -167,7 +169,7 @@ export default function QuestionList() {
       setEditingId(null);
       fetchQuestions(selectedSession || undefined);
     } else {
-      alert(t('qlUpdateError', { message: error.message }));
+      toast(t('qlUpdateError', { message: error.message }), 'error');
     }
   };
 

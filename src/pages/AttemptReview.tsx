@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
 
 type DbAttempt = {
   id: string;
@@ -26,6 +27,7 @@ type DbQuestion = {
 
 export default function AttemptReview() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export default function AttemptReview() {
 
       if (cancelled) return;
       if (attemptErr || !attempt) {
-        alert(t('attemptNotFound'));
+        toast(t('attemptNotFound'), 'error');
         navigate('/history');
         return;
       }
@@ -57,7 +59,7 @@ export default function AttemptReview() {
 
       if (cancelled) return;
       if (aaErr || !attemptAnswers) {
-        alert(t('attemptLoadAnswersError'));
+        toast(t('attemptLoadAnswersError'), 'error');
         navigate('/history');
         return;
       }
@@ -70,7 +72,7 @@ export default function AttemptReview() {
 
       if (cancelled) return;
       if (qErr || !questions) {
-        alert(t('attemptLoadQuestionsError'));
+        toast(t('attemptLoadQuestionsError'), 'error');
         navigate('/history');
         return;
       }

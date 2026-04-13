@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { UserRound, Save, Mail, Shield } from 'lucide-react';
+import { UserRound, Save, Mail, Shield, User } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
 
 export default function Profile() {
   const { user, profile, role, refreshProfile } = useAuth();
   const { t } = useI18n();
+  const { toast } = useToast();
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -18,7 +20,7 @@ export default function Profile() {
     const nextName = fullName.trim();
     if (!user?.id) return;
     if (!nextName) {
-      alert(t('profileEnterFullName'));
+      toast(t('profileEnterFullName'), 'warning');
       return;
     }
 
@@ -34,58 +36,77 @@ export default function Profile() {
     setSaving(false);
 
     if (error) {
-      alert(t('profileSaveFailed', { message: error.message }));
+      toast(t('profileSaveFailed', { message: error.message }), 'error');
       return;
     }
 
     await refreshProfile();
-    alert(t('profileUpdated'));
+    toast(t('profileUpdated'), 'success');
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '760px', margin: '0 auto' }}>
-      <div className="glass-card profile-hero">
-        <div className="profile-avatar">
-          <UserRound size={30} />
+    <div className="animate-fade-in profile-page-container">
+      <div className="profile-hero-new">
+        <div className="profile-avatar-large">
+          <UserRound size={48} />
         </div>
-        <div>
-          <h2 style={{ marginBottom: '0.2rem' }}>{t('profileTitle')}</h2>
-          <p className="text-muted" style={{ margin: 0 }}>{t('profileSubtitle')}</p>
+        <div className="profile-hero-text">
+          <h2>{profile?.full_name || t('profileTitle')}</h2>
+          <p>{t('profileSubtitle')}</p>
         </div>
       </div>
 
-      <div className="card profile-form-card">
-        <div className="grid gap-4">
-          <div>
-            <label className="profile-label">{t('profileFullName')}</label>
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder={t('profileFullNamePlaceholder')}
-            />
-          </div>
-
-          <div className="profile-info-grid">
-            <div className="profile-info-chip">
-              <Mail size={16} />
-              <span>{user?.email || t('profileNoEmail')}</span>
-            </div>
-            <div className="profile-info-chip">
-              <Shield size={16} />
-              <span>{t('profileRole', { role: role || 'user' })}</span>
+      <div className="profile-content-grid">
+        {/* Left Col: Account Info */}
+        <div className="profile-card">
+          <h3 className="profile-section-title">{t('profileTitle')}</h3>
+          
+          <div className="profile-input-group">
+            <label>{t('profileFullName')}</label>
+            <div className="profile-input-wrap">
+              <User size={18} className="profile-input-icon" />
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder={t('profileFullNamePlaceholder')}
+              />
             </div>
           </div>
 
-          <div>
+          <div className="profile-actions">
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleSave}
               disabled={saving}
-              style={{ borderRadius: '999px' }}
             >
-              <Save size={17} /> {saving ? t('profileSaving') : t('profileSave')}
+              <Save size={18} /> {saving ? t('profileSaving') : t('profileSave')}
             </button>
+          </div>
+        </div>
+
+        {/* Right Col: Account Details */}
+        <div className="profile-card">
+          <h3 className="profile-section-title">Account Details</h3>
+          
+          <div className="profile-details-list">
+            <div className="profile-detail-item">
+              <div className="detail-icon"><Mail size={18} /></div>
+              <div className="detail-content">
+                <div className="detail-label">Email Address</div>
+                <div className="detail-value">{user?.email || t('profileNoEmail')}</div>
+              </div>
+            </div>
+
+            <div className="profile-detail-item">
+              <div className="detail-icon"><Shield size={18} /></div>
+              <div className="detail-content">
+                <div className="detail-label">Account Role</div>
+                <div className="detail-value" style={{ textTransform: 'capitalize' }}>
+                  {t('profileRole', { role: role || 'user' }).replace('Role:', '').trim()}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

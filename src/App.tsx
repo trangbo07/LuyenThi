@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X, UserRound, House } from 'lucide-react';
+import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X, UserRound, House, GraduationCap, ChevronRight } from 'lucide-react';
 import Home from './pages/Home';
 import QuestionBank from './pages/QuestionBank';
 import ImportQuestions from './pages/Import';
@@ -22,6 +22,9 @@ import BattleManage from './pages/BattleManage';
 import AdminLayout from './layouts/AdminLayout';
 import AdminHome from './pages/AdminHome';
 import Profile from './pages/Profile';
+import PracticeSetup from './pages/PracticeSetup';
+import PracticeSession from './pages/PracticeSession';
+import PracticeProgress from './pages/PracticeProgress';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { useI18n } from './i18n/I18nProvider';
 
@@ -62,13 +65,14 @@ function Nav() {
 
   const closeMenu = () => setMobileMenuOpen(false);
   const pathname = location.pathname;
-  const showMobileDock = Boolean(user) && !pathname.startsWith('/admin') && !pathname.startsWith('/exam') && !pathname.startsWith('/result');
+  const showMobileDock = Boolean(user) && !pathname.startsWith('/admin') && !pathname.startsWith('/exam') && !pathname.startsWith('/result') && !pathname.startsWith('/practice/session');
 
-  const dockActive = (key: 'home' | 'exam' | 'history' | 'battle' | 'profile') => {
+  const dockActive = (key: 'home' | 'exam' | 'history' | 'battle' | 'practice' | 'profile') => {
     if (key === 'home') return pathname === '/';
     if (key === 'exam') return pathname.startsWith('/generate') || pathname.startsWith('/exam') || pathname.startsWith('/result');
     if (key === 'history') return pathname.startsWith('/history') || pathname.startsWith('/attempt');
     if (key === 'battle') return pathname.startsWith('/battle');
+    if (key === 'practice') return pathname.startsWith('/practice');
     return pathname.startsWith('/profile');
   };
 
@@ -104,19 +108,27 @@ function Nav() {
             {user && (
               <>
                 <Link to="/generate" className="nav-item flex items-center gap-2"><PlayCircle size={18} /> {t('navExam')}</Link>
+                <Link to="/practice" className="nav-item flex items-center gap-2"><GraduationCap size={18} /> {t('navPractice')}</Link>
                 <Link to="/history" className="nav-item flex items-center gap-2"><HistoryIcon size={18} /> {t('navHistory')}</Link>
                 <Link to="/battle/join" className="nav-item flex items-center gap-2"><Swords size={18} /> {t('navJoinBattle')}</Link>
-                <Link to="/profile" className="nav-item flex items-center gap-2"><UserRound size={18} /> {t('navProfile')}</Link>
               </>
             )}
+
+            <div className="navbar-divider" />
+
             {!user ? (
-              <Link to="/login" className="nav-item flex items-center gap-2">{t('navLogIn')}</Link>
+              <div className="flex items-center gap-3">
+                <LanguageSwitcher compact />
+                <Link to="/login" className="btn btn-primary">{t('navLogIn')}</Link>
+              </div>
             ) : (
-              <div className="flex items-center gap-3 flex-wrap">
-                <LanguageSwitcher />
-                <span className="text-sm navbar-user-pill" title={profile?.full_name || user.email || ''}>
-                  {profile?.full_name || user.email || t('navSignedIn')}
-                </span>
+              <div className="flex items-center gap-2 navbar-user-actions">
+                <LanguageSwitcher compact />
+                <Link to="/profile" className="text-sm navbar-user-pill navbar-profile-link" title={profile?.full_name || user.email || ''}>
+                  <UserRound size={16} />
+                  <span>{profile?.full_name || user.email || t('navSignedIn')}</span>
+                  <ChevronRight size={15} className="navbar-profile-link-arrow" />
+                </Link>
                 <button
                   type="button"
                   className="btn btn-secondary flex items-center gap-2 navbar-signout-btn"
@@ -153,20 +165,23 @@ function Nav() {
           {user && (
             <>
               <Link to="/generate" className={navLinkClass} onClick={closeMenu}><PlayCircle size={20} /> {t('navExam')}</Link>
+              <Link to="/practice" className={navLinkClass} onClick={closeMenu}><GraduationCap size={20} /> {t('navPractice')}</Link>
               <Link to="/history" className={navLinkClass} onClick={closeMenu}><HistoryIcon size={20} /> {t('navHistory')}</Link>
               <Link to="/battle/join" className={navLinkClass} onClick={closeMenu}><Swords size={20} /> {t('navJoinBattle')}</Link>
-              <Link to="/profile" className={navLinkClass} onClick={closeMenu}><UserRound size={20} /> {t('navProfile')}</Link>
-              <LanguageSwitcher />
+              <LanguageSwitcher compact />
             </>
           )}
           {!user ? (
             <>
-              <LanguageSwitcher />
+              <LanguageSwitcher compact />
               <Link to="/login" className={navLinkClass} onClick={closeMenu}>{t('navLogIn')}</Link>
             </>
           ) : (
             <>
-              <div className="navbar-sheet-user">{profile?.full_name || user.email}</div>
+              <Link to="/profile" className="navbar-sheet-user" onClick={closeMenu}>
+                <span className="inline-flex items-center gap-2"><UserRound size={16} /> {profile?.full_name || user.email}</span>
+                <span>{t('navProfile')}</span>
+              </Link>
               <button
                 type="button"
                 className={`${navLinkClass} navbar-sheet-signout`}
@@ -189,6 +204,10 @@ function Nav() {
             <House size={18} />
             <span>{t('navHome')}</span>
           </Link>
+          <Link to="/practice" className={`mobile-dock-item ${dockActive('practice') ? 'active' : ''}`}>
+            <GraduationCap size={18} />
+            <span>{t('navPractice')}</span>
+          </Link>
           <Link to="/generate" className={`mobile-dock-item ${dockActive('exam') ? 'active' : ''}`}>
             <PlayCircle size={18} />
             <span>{t('navExam')}</span>
@@ -200,10 +219,6 @@ function Nav() {
           <Link to="/battle/join" className={`mobile-dock-item ${dockActive('battle') ? 'active' : ''}`}>
             <Swords size={18} />
             <span>{t('navJoinBattle')}</span>
-          </Link>
-          <Link to="/profile" className={`mobile-dock-item ${dockActive('profile') ? 'active' : ''}`}>
-            <UserRound size={18} />
-            <span>{t('navProfile')}</span>
           </Link>
         </div>
       )}
@@ -253,6 +268,9 @@ function AppShell() {
           <Route path="/history" element={<RequireAuth allowRoles={['admin', 'user']}><History /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth allowRoles={['admin', 'user']}><Profile /></RequireAuth>} />
           <Route path="/attempt/:id" element={<RequireAuth allowRoles={['admin', 'user']}><AttemptReview /></RequireAuth>} />
+          <Route path="/practice" element={<RequireAuth allowRoles={['admin', 'user']}><PracticeSetup /></RequireAuth>} />
+          <Route path="/practice/session" element={<RequireAuth allowRoles={['admin', 'user']}><PracticeSession /></RequireAuth>} />
+          <Route path="/practice/progress" element={<RequireAuth allowRoles={['admin', 'user']}><PracticeProgress /></RequireAuth>} />
           <Route path="/battle/join" element={<RequireAuth allowRoles={['admin', 'user']}><BattleJoin /></RequireAuth>} />
           <Route path="/import" element={<Navigate to="/admin/import" replace />} />
           <Route path="/bank" element={<Navigate to="/admin/bank" replace />} />

@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { formatAuthError } from '../lib/authErrors';
 import { upsertProfileForUserId } from '../lib/profile';
 import { useI18n } from '../i18n/I18nProvider';
+import { BookOpen, UserPlus, Mail, Lock, User } from 'lucide-react';
 
 export default function Register() {
   const { t } = useI18n();
@@ -69,7 +70,6 @@ export default function Register() {
         return;
       }
     }
-    // No session yet (email confirmation): DB trigger handle_new_user should insert profiles; if not, first login runs loadOrCreateProfile in AuthProvider.
 
     setLoading(false);
 
@@ -81,93 +81,109 @@ export default function Register() {
     navigate('/login', {
       replace: true,
       state: {
-        message:
-          t('registerEmailConfirmMessage'),
+        message: t('registerEmailConfirmMessage'),
       },
     });
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '520px', margin: '0 auto' }}>
-      <div className="glass-card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ marginBottom: '0.25rem' }}>{t('registerTitle')}</h2>
-        <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '1rem' }}>
-          {t('registerSubtitle')}
+    <div className="auth-page">
+      {/* Left: Branding */}
+      <div className="auth-brand">
+        <div className="auth-brand-content">
+          <div className="auth-brand-icon">
+            <BookOpen size={40} />
+          </div>
+          <h1 className="auth-brand-title">Exam System Pro</h1>
+          <p className="auth-brand-subtitle">{t('registerSubtitle')}</p>
+          <div className="auth-brand-features">
+            <div className="auth-feature-item">
+              <span className="auth-feature-dot" />
+              {t('homeKicker')}
+            </div>
+            <div className="auth-feature-item">
+              <span className="auth-feature-dot" />
+              Smart Practice Mode
+            </div>
+            <div className="auth-feature-item">
+              <span className="auth-feature-dot" />
+              Battle & Competition
+            </div>
+          </div>
         </div>
+        <div className="auth-brand-decoration" />
+      </div>
 
-        {!isSupabaseConfigured() && (
-          <div
-            role="status"
-            style={{
-              marginBottom: '1rem',
-              padding: '0.75rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              color: '#991b1b',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-            }}
-          >
-            {t('registerMissingEnv')}
-          </div>
-        )}
-
-        {error && (
-          <div
-            role="alert"
-            style={{
-              marginBottom: '1rem',
-              padding: '0.75rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(239, 68, 68, 0.08)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#b91c1c',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={onSubmit} className="grid gap-4">
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('registerFullName')}</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder={t('registerFullNamePlaceholder')} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('registerEmail')}</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              required
-              autoComplete="email"
-              placeholder={t('registerEmailPlaceholder')}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('registerPassword')}</label>
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              required
-              minLength={6}
-              autoComplete="new-password"
-              placeholder={t('registerPasswordHint')}
-            />
+      {/* Right: Form */}
+      <div className="auth-form-wrapper">
+        <div className="auth-form-card animate-fade-in">
+          <div className="auth-form-header">
+            <h2>{t('registerTitle')}</h2>
+            <p className="text-muted">{t('registerSubtitle')}</p>
           </div>
 
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', borderRadius: '999px' }}>
-            {loading ? t('registerCreating') : t('registerCreate')}
-          </button>
-        </form>
+          {!isSupabaseConfigured() && (
+            <div className="auth-error">{t('registerMissingEnv')}</div>
+          )}
 
-        <div className="text-sm" style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          {t('registerHaveAccount')} <Link to="/login">{t('registerSignIn')}</Link>
+          {error && (
+            <div className="auth-error">{error}</div>
+          )}
+
+          <form onSubmit={onSubmit} className="auth-form">
+            <div className="auth-input-group">
+              <label>{t('registerFullName')}</label>
+              <div className="auth-input-icon-wrap">
+                <User size={18} className="auth-input-icon" />
+                <input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  placeholder={t('registerFullNamePlaceholder')}
+                />
+              </div>
+            </div>
+
+            <div className="auth-input-group">
+              <label>{t('registerEmail')}</label>
+              <div className="auth-input-icon-wrap">
+                <Mail size={18} className="auth-input-icon" />
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder={t('registerEmailPlaceholder')}
+                />
+              </div>
+            </div>
+
+            <div className="auth-input-group">
+              <label>{t('registerPassword')}</label>
+              <div className="auth-input-icon-wrap">
+                <Lock size={18} className="auth-input-icon" />
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  placeholder={t('registerPasswordHint')}
+                />
+              </div>
+            </div>
+
+            <button className="btn btn-primary auth-submit-btn" type="submit" disabled={loading}>
+              <UserPlus size={18} />
+              {loading ? t('registerCreating') : t('registerCreate')}
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            {t('registerHaveAccount')} <Link to="/login">{t('registerSignIn')}</Link>
+          </div>
         </div>
       </div>
     </div>
