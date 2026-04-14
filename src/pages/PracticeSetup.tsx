@@ -22,6 +22,7 @@ export default function PracticeSetup() {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedSession, setSelectedSession] = useState('');
   const [loading, setLoading] = useState(false);
+  const [shuffleQuestions, setShuffleQuestions] = useState(true);
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [masteryRows, setMasteryRows] = useState<QuestionMastery[]>([]);
 
@@ -90,6 +91,7 @@ export default function PracticeSetup() {
         subjectId: selectedSubject,
         sessionId: selectedSession,
         mode,
+        shuffleQuestions,
       },
     });
   };
@@ -140,6 +142,23 @@ export default function PracticeSetup() {
 
       {stats && !loading && (
         <>
+          <div className="card" style={{ marginTop: '1.5rem' }}>
+            <div className="flex items-center justify-between" style={{ gap: '0.75rem' }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>{t('practiceShuffleQuestions')}</div>
+                <div className="text-muted" style={{ fontSize: '0.92rem' }}>{t('practiceShuffleQuestionsHint')}</div>
+              </div>
+              <button
+                type="button"
+                className={`btn ${shuffleQuestions ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setShuffleQuestions(prev => !prev)}
+                style={{ borderRadius: '999px', minWidth: '110px' }}
+              >
+                {shuffleQuestions ? t('practiceShuffleEnabled') : t('practiceShuffleDisabled')}
+              </button>
+            </div>
+          </div>
+
           {/* Stats overview */}
           <div className="card" style={{ marginTop: '1.5rem' }}>
             <div style={{ fontWeight: 900, marginBottom: '0.75rem', fontSize: '1.05rem' }}>
