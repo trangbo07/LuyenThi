@@ -4,9 +4,11 @@ import type { Subject } from '../types/database.types';
 import { Trash2, Plus } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from './Toast';
 
 export default function SubjectManager() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -38,7 +40,7 @@ export default function SubjectManager() {
       setName('');
       fetchSubjects();
     } else {
-      alert(t('subjectAddError', { message: error.message }));
+      toast(t('subjectAddError', { message: error.message }), 'error');
     }
   };
 
@@ -48,7 +50,7 @@ export default function SubjectManager() {
     if (!error) {
       fetchSubjects();
     } else {
-      alert(t('subjectDeleteError', { message: error.message }));
+      toast(t('subjectDeleteError', { message: error.message }), 'error');
     }
   };
 

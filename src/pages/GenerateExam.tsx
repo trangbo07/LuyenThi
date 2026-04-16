@@ -3,16 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Subject, ExamSession } from '../types/database.types';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
+import { BookOpen, Layers, Settings, ChevronRight, ChevronLeft, Rocket } from 'lucide-react';
 
 export default function GenerateExam() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { toast } = useToast();
+  
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [sessions, setSessions] = useState<ExamSession[]>([]);
+  
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedSessions, setSelectedSessions] = useState<string[]>([]);
   const [questionCount, setQuestionCount] = useState<number>(50);
   const [timeLimit, setTimeLimit] = useState<number>(60);
+  
+  const [step, setStep] = useState(1);
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
@@ -29,8 +36,7 @@ export default function GenerateExam() {
     if (data) setSessions(data);
   };
 
-  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
+  const handleSubjectSelect = (id: string) => {
     setSelectedSubject(id);
     setSelectedSessions([]);
     if (id) fetchSessions(id);
@@ -43,14 +49,33 @@ export default function GenerateExam() {
     );
   };
 
+  const selectAllSessions = () => {
+    setSelectedSessions(sessions.map(s => s.id));
+  };
+
+  const clearSessions = () => {
+    setSelectedSessions([]);
+  };
+
+  const nextStep = () => {
+    if (step === 1 && !selectedSubject) {
+      toast(t('generateAlertSelectSubject'), 'warning'); return;
+    }
+    if (step === 2 && selectedSessions.length === 0) {
+      toast(t('generateAlertSelectSession'), 'warning'); return;
+    }
+    setStep(s => s + 1);
+  };
+
+  const prevStep = () => setStep(s => s - 1);
+
   const handleGenerate = async () => {
-    if (!selectedSubject) return alert(t('generateAlertSelectSubject'));
-    if (selectedSessions.length === 0) return alert(t('generateAlertSelectSession'));
-    if (questionCount <= 0) return alert(t('generateAlertQuestionCount'));
+    if (!selectedSubject) { toast(t('generateAlertSelectSubject'), 'warning'); return; }
+    if (selectedSessions.length === 0) { toast(t('generateAlertSelectSession'), 'warning'); return; }
+    if (questionCount <= 0) { toast(t('generateAlertQuestionCount'), 'warning'); return; }
 
     setGenerating(true);
 
-    // Fetch questions from selected sessions
     const { data, error } = await supabase
       .from('questions')
       .select('*')
@@ -59,17 +84,16 @@ export default function GenerateExam() {
     setGenerating(false);
 
     if (error) {
-      return alert(t('generateFetchError', { message: error.message }));
+      toast(t('generateFetchError', { message: error.message }), 'error'); return;
     }
 
     if (!data || data.length === 0) {
-      return alert(t('generateNoQuestions'));
+      toast(t('generateNoQuestions'), 'warning'); return;
     }
 
-    // Filter out duplicate questions by question text to prevent identical questions
+    // Filter out duplicate questions
     const uniqueQuestionsMap = new Map<string, typeof data[0]>();
     data.forEach(q => {
-      // Normalize the text (lowercase, collapse whitespace) to improve duplicate detection
       const normalizedText = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
       if (!uniqueQuestionsMap.has(normalizedText)) {
         uniqueQuestionsMap.set(normalizedText, q);
@@ -77,93 +101,160 @@ export default function GenerateExam() {
     });
 
     const uniqueQuestions = Array.from(uniqueQuestionsMap.values());
-
-    // Shuffle unique questions
     const shuffledQuestions = [...uniqueQuestions].sort(() => Math.random() - 0.5).slice(0, questionCount);
 
-    // Shuffle options for each question
     const processedQuestions = shuffledQuestions.map(q => {
       const options = (q.options || []).map((text: string, idx: number) => ({
         label: String.fromCharCode(65 + idx),
         text
       }));
-
-      // Shuffle the options array
       options.sort(() => Math.random() - 0.5);
-
-      // Map back to A, B, C, D in UI, but keep track of WHICH original label it is
-      // correct_options are array of original labels ['A', 'C'] etc.
       return {
         ...q,
-        shuffled_options: options, // Array of { label: originalLabel, text }
+        shuffled_options: options,
       };
     });
 
-    // Navigate to exam page
     navigate('/exam', { state: { questions: processedQuestions, subjectId: selectedSubject, timeLimit } });
   };
 
+  const steps = [
+    { num: 1, title: t('generateSubject'), icon: <BookOpen size={20} /> },
+    { num: 2, title: t('generateSessions'), icon: <Layers size={20} /> },
+    { num: 3, title: 'Configuration', icon: <Settings size={20} /> }
+  ];
+
   return (
-    <div className="card animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h2 className="mb-4 text-center">{t('generateTitle')}</h2>
+    <div className="wizard-container animate-fade-in">
+      <div className="wizard-card">
+        {/* PROGRESS HEADER */}
+        <div className="wizard-progress">
+          {steps.map((s, idx) => (
+            <div key={s.num} className={`wizard-step ${step === s.num ? 'active' : ''} ${step > s.num ? 'completed' : ''}`}>
+              <div className="wizard-step-icon">{s.icon}</div>
+              <div className="wizard-step-label">{s.title}</div>
+              {idx < steps.length - 1 && <div className="wizard-connector" />}
+            </div>
+          ))}
+        </div>
 
-      <div className="mb-4">
-        <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateSubject')}</label>
-        <select value={selectedSubject} onChange={handleSubjectChange}>
-          <option value="">{t('generateChooseSubject')}</option>
-          {subjects.map(s => <option key={s.id} value={s.id}>{s.code} - {s.name}</option>)}
-        </select>
+        <div className="wizard-content">
+          <h2 className="wizard-title text-center" style={{ marginBottom: '2rem' }}>
+            {step === 1 && t('generateTitle')}
+            {step === 2 && t('generateSessions')}
+            {step === 3 && 'Final Configuration'}
+          </h2>
+
+          {/* STEP 1 */}
+          {step === 1 && (
+            <div className="wizard-step-content animate-fade-in">
+              <div className="subject-grid">
+                {subjects.map(subj => (
+                  <button
+                    key={subj.id}
+                    className={`subject-card ${selectedSubject === subj.id ? 'selected' : ''}`}
+                    onClick={() => handleSubjectSelect(subj.id)}
+                  >
+                    <div className="subject-code">{subj.code}</div>
+                    <div className="subject-name">{subj.name}</div>
+                  </button>
+                ))}
+                {subjects.length === 0 && <p className="text-center text-muted" style={{ padding: '2rem' }}>No subjects found. Please add subjects in Admin.</p>}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2 */}
+          {step === 2 && (
+            <div className="wizard-step-content animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-bold text-muted">{sessions.length} sessions available</span>
+                <div className="flex gap-2">
+                  <button className="btn btn-secondary text-sm" onClick={selectAllSessions} style={{ padding: '0.4rem 0.8rem', borderRadius: '999px' }}>Select All</button>
+                  <button className="btn btn-secondary text-sm" onClick={clearSessions} style={{ padding: '0.4rem 0.8rem', borderRadius: '999px' }}>Clear</button>
+                </div>
+              </div>
+              
+              <div className="session-grid">
+                {sessions.map(s => (
+                  <label key={s.id} className={`session-card ${selectedSessions.includes(s.id) ? 'selected' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSessions.includes(s.id)}
+                      onChange={() => toggleSession(s.id)}
+                      style={{ display: 'none' }}
+                    />
+                    <div className="session-code">{s.code}</div>
+                    <div className="session-name" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                    <div className="session-checkbox">
+                       {selectedSessions.includes(s.id) && <div className="session-checkmark"></div>}
+                    </div>
+                  </label>
+                ))}
+                {sessions.length === 0 && <p className="text-center text-muted col-span-full" style={{ padding: '2rem' }}>{t('generateNoSessions')}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3 */}
+          {step === 3 && (
+            <div className="wizard-step-content animate-fade-in">
+              <div className="config-grid">
+                <div className="config-card">
+                  <label>{t('generateQuestionCount')}</label>
+                  <div className="config-input-wrapper">
+                    <input
+                      type="number"
+                      value={questionCount}
+                      onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                      min={1}
+                      max={200}
+                    />
+                    <span className="config-suffix">questions</span>
+                  </div>
+                </div>
+                
+                <div className="config-card">
+                  <label>{t('generateTimeLimit')}</label>
+                  <div className="config-input-wrapper">
+                    <input
+                      type="number"
+                      value={timeLimit}
+                      onChange={(e) => setTimeLimit(parseInt(e.target.value))}
+                      min={1}
+                      max={300}
+                    />
+                    <span className="config-suffix">minutes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CONTROLS */}
+        <div className="wizard-footer">
+          {step > 1 ? (
+             <button className="btn btn-secondary flex items-center gap-2" onClick={prevStep} style={{ borderRadius: '999px', padding: '0.8rem 1.5rem' }}>
+               <ChevronLeft size={18} /> Back
+             </button>
+          ) : <div></div>}
+
+          {step < 3 ? (
+             <button className="btn btn-primary flex items-center gap-2" onClick={nextStep} style={{ borderRadius: '999px', padding: '0.8rem 1.5rem' }}>
+               Next <ChevronRight size={18} />
+             </button>
+          ) : (
+             <button className="btn btn-primary flex items-center gap-2" onClick={handleGenerate} disabled={generating} style={{ borderRadius: '999px', padding: '0.8rem 1.75rem', background: 'var(--success-color)' }}>
+               {generating ? 'Processing...' : (
+                 <>
+                   <Rocket size={18} /> {t('generateStart')}
+                 </>
+               )}
+             </button>
+          )}
+        </div>
       </div>
-
-      {selectedSubject && (
-        <div className="mb-4">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateSessions')}</label>
-          {sessions.length === 0 && <p className="text-muted text-sm">{t('generateNoSessions')}</p>}
-          <div className="grid gap-2" style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-            {sessions.map(s => (
-              <label key={s.id} className="flex gap-2 items-center" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  style={{ width: 'auto' }}
-                  checked={selectedSessions.includes(s.id)}
-                  onChange={() => toggleSession(s.id)}
-                />
-                {s.code} - {s.name}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateQuestionCount')}</label>
-          <input
-            type="number"
-            value={questionCount}
-            onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-            min={1}
-            max={200}
-            style={{ width: '100%' }}
-          />
-        </div>
-        <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 600 }}>{t('generateTimeLimit')}</label>
-          <input
-            type="number"
-            value={timeLimit}
-            onChange={(e) => setTimeLimit(parseInt(e.target.value))}
-            min={1}
-            max={300}
-            style={{ width: '100%' }}
-          />
-        </div>
-      </div>
-
-      <button className="btn btn-primary w-full" style={{ width: '100%', padding: '1rem' }} onClick={handleGenerate} disabled={generating || !selectedSubject || selectedSessions.length === 0}>
-        {generating ? t('generateProcessing') : t('generateStart')}
-      </button>
-
     </div>
   );
 }

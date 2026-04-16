@@ -111,59 +111,103 @@ export default function BattleCreate() {
   };
 
   return (
-    <div className="card animate-fade-in" style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <h2 className="mb-2 text-center">{t('battleCreateTitle')}</h2>
-      <p className="text-muted text-sm text-center mb-4" style={{ fontWeight: 600 }}>
-        {t('battleCreateSubtitle')}
-      </p>
+    <div className="animate-fade-in" style={{ padding: '2rem 1rem', maxWidth: '700px', margin: '0 auto' }}>
+      <div className="glass-card" style={{ padding: '2.5rem', borderRadius: 'var(--radius-xl)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '0.5rem', background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            {t('battleCreateTitle')}
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.95rem' }}>
+            {t('battleCreateSubtitle')}
+          </p>
+        </div>
 
-      <div className="mb-4">
-        <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateSubject')}</label>
-        <select
-          value={selectedSubject}
-          onChange={(e) => {
-            const id = e.target.value;
-            setSelectedSubject(id);
-            setSelectedSessions([]);
-            setSessions([]);
-            if (id) fetchSessions(id);
-          }}
-        >
-          <option value="">{t('battleCreateChooseSubject')}</option>
-          {subjects.map(s => (
-            <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
-          ))}
-        </select>
-      </div>
+        <div className="auth-form" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="auth-input-group">
+            <label>{t('battleCreateSubject')}</label>
+            <select
+              value={selectedSubject}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedSubject(id);
+                setSelectedSessions([]);
+                setSessions([]);
+                if (id) fetchSessions(id);
+              }}
+              style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: '#f8fafc', fontWeight: 600, color: 'var(--text-primary)' }}
+            >
+              <option value="">{t('battleCreateChooseSubject')}</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
+              ))}
+            </select>
+          </div>
 
-      {selectedSubject && (
-        <div className="mb-4">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateSessions')}</label>
-          <div className="grid gap-2" style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-            {sessions.map(s => (
-              <label key={s.id} className="flex gap-2 items-center" style={{ cursor: 'pointer' }}>
-                <input type="checkbox" style={{ width: 'auto' }} checked={selectedSessions.includes(s.id)} onChange={() => toggleSession(s.id)} />
-                {s.code} - {s.name}
-              </label>
-            ))}
+          {selectedSubject && (
+            <div className="auth-input-group">
+              <label>{t('battleCreateSessions')}</label>
+              <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-lg)', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {sessions.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '1rem', fontWeight: 500, fontSize: '0.9rem' }}>
+                    Loading...
+                  </div>
+                ) : (
+                  sessions.map(s => (
+                    <label key={s.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', cursor: 'pointer', padding: '0.5rem', borderRadius: 'var(--radius-md)', background: 'white', border: '1px solid #e2e8f0', transition: 'all 0.2s', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--primary-color)', cursor: 'pointer' }} 
+                        checked={selectedSessions.includes(s.id)} 
+                        onChange={() => toggleSession(s.id)} 
+                      />
+                      <span style={{ fontSize: '0.95rem' }}>{s.code} - {s.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+             <div className="auth-input-group">
+                <label>{t('battleCreateQuestionCount')}</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={questionCount}
+                  onChange={(e) => setQuestionCount(Number(e.target.value))}
+                  style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: '#f8fafc', fontWeight: 800, color: 'var(--primary-color)' }}
+                />
+             </div>
+             <div className="auth-input-group">
+                <label>{t('battleCreateTimeLimit')}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={300}
+                    value={timeLimit}
+                    onChange={(e) => setTimeLimit(Number(e.target.value))}
+                    style={{ flex: 1, padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: '#f8fafc', fontWeight: 800, color: 'var(--primary-color)' }}
+                  />
+                  <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>min</span>
+                </div>
+             </div>
+          </div>
+
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              onClick={handleCreate}
+              disabled={creating || !selectedSubject || selectedSessions.length === 0 || questionCount <= 0}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '1rem', borderRadius: '999px', fontSize: '1.1rem', fontWeight: 800 }}
+            >
+              {creating ? t('battleCreating') : t('battleCreateBtn')}
+            </button>
           </div>
         </div>
-      )}
-
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateQuestionCount')}</label>
-          <input type="number" value={questionCount} onChange={(e) => setQuestionCount(parseInt(e.target.value))} min={1} max={200} />
-        </div>
-        <div className="flex-1">
-          <label className="mb-2" style={{ display: 'block', fontWeight: 800 }}>{t('battleCreateTimeLimit')}</label>
-          <input type="number" value={timeLimit} onChange={(e) => setTimeLimit(parseInt(e.target.value))} min={1} max={300} />
-        </div>
       </div>
-
-      <button className="btn btn-primary w-full" style={{ width: '100%', padding: '1rem' }} onClick={handleCreate} disabled={creating || !selectedSubject || selectedSessions.length === 0}>
-        {creating ? t('battleCreating') : t('battleCreateBtn')}
-      </button>
     </div>
   );
 }

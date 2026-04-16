@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import PaginationControls from '../components/PaginationControls';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
 
 type CompetitionRow = {
   id: string;
@@ -42,6 +43,7 @@ function countByCompetitionId(rows: { competition_id: string }[] | null) {
 export default function BattleManage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Enriched[]>([]);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
@@ -59,7 +61,7 @@ export default function BattleManage() {
 
     if (cErr) {
       setLoading(false);
-      alert(t('battleLoadRoomsError', { message: cErr.message }));
+      toast(t('battleLoadRoomsError', { message: cErr.message }), 'error');
       return;
     }
 
@@ -117,7 +119,7 @@ export default function BattleManage() {
     const { error } = await supabase.from('competitions').update({ status: 'closed' }).eq('id', id);
     setClosingId(null);
     if (error) {
-      alert(t('battleCloseError', { message: error.message }));
+      toast(t('battleCloseError', { message: error.message }), 'error');
       return;
     }
     await load();
@@ -129,7 +131,7 @@ export default function BattleManage() {
     const { error } = await supabase.from('competitions').update({ status: 'open' }).eq('id', id);
     setClosingId(null);
     if (error) {
-      alert(t('battleReopenError', { message: error.message }));
+      toast(t('battleReopenError', { message: error.message }), 'error');
       return;
     }
     await load();
@@ -138,9 +140,9 @@ export default function BattleManage() {
   const copyCode = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
-      alert(t('battleCopyCodeDone', { code }));
+      toast(t('battleCopyCodeDone', { code }), 'success');
     } catch {
-      alert(t('battleRoomCode', { code }));
+      toast(t('battleRoomCode', { code }), 'info');
     }
   };
 

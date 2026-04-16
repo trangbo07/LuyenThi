@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Clock, ChevronLeft, ChevronRight, Send, AlertCircle, LayoutGrid, Bookmark, StickyNote } from 'lucide-react';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
 
 type ProcessedQuestion = {
   id: string;
@@ -15,6 +16,7 @@ export default function ExamSession() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { toast } = useToast();
   
   const questions: ProcessedQuestion[] = location.state?.questions || [];
   const subjectId: string = location.state?.subjectId || '';
@@ -52,7 +54,7 @@ export default function ExamSession() {
         .eq('user_id', uid)
         .maybeSingle();
       if (cancelled || !existing) return;
-      alert(t('battleAlreadyPlayed'));
+      toast(t('battleAlreadyPlayed'), 'warning');
       navigate(`/battle/${battleCode}/ranking`, { replace: true });
     })();
     return () => {
@@ -64,7 +66,7 @@ export default function ExamSession() {
     if (questions.length === 0 || submitting) return;
     
     if (timeLeft <= 0) {
-        alert(t('examTimeUp'));
+        toast(t('examTimeUp'), 'warning');
       handleSubmit(true);
       return;
     }
@@ -155,7 +157,7 @@ export default function ExamSession() {
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (userErr || !userId) {
-      alert(t('examNeedSignIn'));
+      toast(t('examNeedSignIn'), 'error');
       setSubmitting(false);
       return;
     }
@@ -197,11 +199,11 @@ export default function ExamSession() {
       const code = (attemptError as { code?: string })?.code;
       const msg = attemptError?.message || '';
       if (code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
-        alert(t('examDuplicateBattle'));
+        toast(t('examDuplicateBattle'), 'warning');
         if (battleCode) navigate(`/battle/${battleCode}/ranking`, { replace: true });
         else navigate('/history', { replace: true });
       } else {
-        alert(t('examSaveAttemptError', { message: msg }));
+        toast(t('examSaveAttemptError', { message: msg }), 'error');
       }
       setSubmitting(false);
       return;
@@ -260,208 +262,184 @@ export default function ExamSession() {
   };
 
   return (
-    <div className="animate-fade-in exam-wrapper" style={{ margin: '-2rem -1.5rem 0', padding: '2rem 1.5rem 2rem', minHeight: 'calc(100vh - 60px)' }}>
-      <div className="exam-shell" style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <div className="animate-fade-in exam-session-container">
+      {/* HEADER BAR */}
+      <header className="exam-header-glass">
+        <div className="exam-header-left">
+          <h1 className="exam-title text-truncate">{t('examTitle')}</h1>
+          <div className="exam-stats-pill">
+            <span className="stat-answered">{answeredCount}</span> {t('examAnswered')}
+            <span className="stat-divider">•</span>
+            <span className="stat-unanswered">{unansweredCount}</span> {t('examUnanswered')}
+            <span className="stat-divider">•</span>
+            <span className="stat-marked">{markedCount}</span> {t('examMarkedReview')}
+          </div>
+        </div>
+
+        <div className="exam-header-right">
+          <div className={`exam-timer ${isTimeCritical ? 'critical' : ''}`}>
+             <Clock size={22} className="timer-icon" />
+             <span className="timer-text">{formatTime(timeLeft)}</span>
+          </div>
+
+          <button
+            className="btn btn-secondary exam-nav-btn desktop-hidden"
+            onClick={() => setNavOpen(v => !v)}
+            title={t('examOpenNavigator')}
+          >
+            <LayoutGrid size={20} />
+          </button>
+        </div>
+      </header>
+
+      {/* MOBILE PROGRESS */}
+      <div className="exam-mobile-progress desktop-hidden">
+        <div className="flex justify-between text-xs font-bold text-muted mb-1">
+          <span>{t('examProgress')}</span>
+          <span>{Math.round(progressPercent)}%</span>
+        </div>
+        <div className="progress-track">
+          <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
+      </div>
+
+      <div className="exam-main-grid">
         
-        {/* Header */}
-        <div className="glass-card sticky z-10 mb-5 flex justify-between items-center" style={{ top: '1rem', padding: '1rem 1.25rem' }}>
-          <div style={{ minWidth: 0 }}>
-            <h3 className="mb-1" style={{ fontSize: '1.2rem', background: 'linear-gradient(90deg, #0f766e, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t('examTitle')}
-            </h3>
-            <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              <span style={{ color: 'var(--primary-color)', fontWeight: 800 }}>{answeredCount}</span> {t('examAnswered')} • <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{unansweredCount}</span> {t('examUnanswered')}
-            </div>
-            <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              <span style={{ color: '#b45309', fontWeight: 800 }}>{markedCount}</span> {t('examMarkedReview')}
-            </div>
-          </div>
+        {/* LEFT COLUMN: QUESTION */}
+        <div className="exam-question-column">
+           {/* ACTION BAR TOP */}
+           <div className="exam-action-bar">
+             <button
+               onClick={goPrev}
+               disabled={currentIndex === 0}
+               className="btn btn-outline action-prev"
+             >
+               <ChevronLeft size={20} /> <span className="action-text">{t('examPrevious')}</span>
+             </button>
 
-          <div className="flex items-center gap-3">
-            <button
-              className="btn btn-secondary exam-nav-toggle"
-              onClick={() => setNavOpen(v => !v)}
-              type="button"
-              style={{ padding: '0.6rem 0.9rem', borderRadius: '999px' }}
-              title={t('examOpenNavigator')}
-            >
-              <LayoutGrid size={18} />
-              <span className="hidden sm:inline">{t('examQuestions')}</span>
-            </button>
+             <div className="exam-current-badge">
+               Q{currentIndex + 1} <span className="exam-total-badge">/ {questions.length}</span>
+             </div>
 
-            <div className="flex items-center gap-2" style={{ fontWeight: 800, fontSize: '1.4rem' }}>
-              <Clock size={26} className={isTimeCritical ? 'text-danger-pulse' : ''} style={{ color: isTimeCritical ? 'inherit' : 'var(--primary-color)' }} />
-              <span className={isTimeCritical ? 'text-danger-pulse' : ''} style={{ fontVariantNumeric: 'tabular-nums', color: isTimeCritical ? 'inherit' : 'var(--text-primary)' }}>
-                {formatTime(timeLeft)}
-              </span>
-            </div>
-          </div>
-        </div>
+             <button
+               onClick={goNext}
+               disabled={currentIndex === questions.length - 1}
+               className="btn btn-outline action-next"
+             >
+               <span className="action-text">{t('examNext')}</span> <ChevronRight size={20} />
+             </button>
+           </div>
 
-        {/* Progress */}
-        <div className="mb-5">
-          <div className="flex justify-between text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-            <span>{t('examProgress')}</span>
-            <span>{Math.round(progressPercent)}%</span>
-          </div>
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${progressPercent}%` }}></div>
-          </div>
-        </div>
-
-        <div className="glass-card exam-action-bar mb-5">
-          <div className="exam-action-row">
-            <button
-              onClick={goPrev}
-              disabled={currentIndex === 0}
-              className="btn btn-secondary flex items-center gap-2"
-              style={{ borderRadius: '99px', opacity: currentIndex === 0 ? 0.5 : 1 }}
-            >
-              <ChevronLeft size={18} /> <span className="hidden sm:inline">{t('examPrevious')}</span>
-            </button>
-
-            <div className="exam-action-meta text-sm">
-              {t('examQuestionLabel')} <strong>{currentIndex + 1}</strong> / {questions.length}
-            </div>
-
-            <button
-              onClick={goNext}
-              disabled={currentIndex === questions.length - 1}
-              className="btn btn-primary flex items-center gap-2"
-              style={{ borderRadius: '99px', opacity: currentIndex === questions.length - 1 ? 0.5 : 1 }}
-            >
-              <span className="hidden sm:inline">{t('examNext')}</span> <ChevronRight size={18} />
-            </button>
-
-            <button
-              onClick={() => handleSubmit()}
-              disabled={submitting}
-              className="btn exam-submit-btn flex items-center gap-2"
-              style={{ borderRadius: '99px' }}
-            >
-              {submitting ? t('examSubmitting') : t('examSubmit')} <Send size={18} />
-            </button>
-          </div>
-        </div>
-
-        <div className="exam-grid">
-          {/* Question Card */}
-          <div className="glass-card p-8 mb-6 relative exam-main">
-            <div className="absolute top-0 right-0 py-1 px-4 text-sm" style={{ background: 'var(--primary-color)', color: 'white', borderBottomLeftRadius: 'var(--radius-lg)', borderTopRightRadius: 'var(--radius-xl)', fontWeight: 700 }}>
-              Q{currentIndex + 1}/{questions.length}
-            </div>
-            
-            <div className="mb-7 mt-2">
-              <h4 style={{ lineHeight: '1.7', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+           {/* QUESTION CARD */}
+           <div className="exam-question-card">
+              <div className="question-text-content">
                 {currentQuestion.question_text}
-              </h4>
-            </div>
-            
-            <div className="mb-6 inline-flex items-center gap-2" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.4rem 1rem', borderRadius: '99px', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem' }}>
-              <AlertCircle size={18} style={{ color: 'var(--primary-color)' }} />
-              {currentQuestion.correct_options.length > 1 
-                  ? t('examSelectAnswers', { count: currentQuestion.correct_options.length })
-                  : t('examSelectOne')}
-            </div>
+              </div>
 
-            <div className="mb-6">
-              <button
+              <div className="question-instruction">
+                <AlertCircle size={18} className="instruction-icon" />
+                <span>
+                  {currentQuestion.correct_options.length > 1 
+                      ? t('examSelectAnswers', { count: currentQuestion.correct_options.length })
+                      : t('examSelectOne')}
+                </span>
+              </div>
+
+              <div className="question-options">
+                {currentQuestion.shuffled_options.map((opt, oIdx) => {
+                  const isSelected = (answers[currentQuestion.id] || []).includes(opt.label);
+                  return (
+                    <label 
+                      key={opt.label} 
+                      className={`exam-option ${isSelected ? 'selected' : ''}`}
+                    >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={isSelected}
+                          onChange={() => toggleAnswer(currentQuestion.id, opt.label)}
+                        />
+                        <div className="exam-option-indicator" />
+                        <div className="exam-option-content">
+                          <span className="exam-option-letter">{String.fromCharCode(65 + oIdx)}.</span>
+                          <span className="exam-option-text">{opt.text}</span>
+                        </div>
+                    </label>
+                  );
+                })}
+              </div>
+           </div>
+
+           {/* TOOLBAR BOTTOM */}
+           <div className="exam-toolbar-bottom">
+             <button
                 type="button"
-                className={`btn btn-secondary ${markedForReview[currentQuestion.id] ? 'result-filter active' : ''}`}
-                style={{ borderRadius: '999px' }}
+                className={`btn btn-secondary toolbar-mark-btn ${markedForReview[currentQuestion.id] ? 'active' : ''}`}
                 onClick={() => toggleReviewMark(currentQuestion.id)}
               >
-                <Bookmark size={16} /> {markedForReview[currentQuestion.id] ? t('examMarkedForReview') : t('examMarkForReview')}
+                <Bookmark size={18} /> 
+                <span className="toolbar-text">{markedForReview[currentQuestion.id] ? t('examMarkedForReview') : t('examMarkForReview')}</span>
               </button>
-            </div>
 
-            {/* Mobile quick navigator */}
-            <div className="exam-qchips mb-6">
-              {questions.map((q, idx) => {
-                const isAnswered = (answers[q.id] || []).length > 0;
-                const isActive = idx === currentIndex;
-                return (
-                  <button
-                    key={q.id}
-                    type="button"
-                    className={`exam-qchip ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''} ${markedForReview[q.id] ? 'marked' : ''}`}
-                    onClick={() => goToQuestion(idx)}
-                    title={isAnswered ? t('examAnsweredTitle') : t('examUnansweredTitle')}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
-            </div>
+              <button
+                onClick={() => handleSubmit()}
+                disabled={submitting}
+                className="btn btn-primary toolbar-submit-btn"
+              >
+                <span className="toolbar-text">{submitting ? t('examSubmitting') : t('examSubmit')}</span>
+                <Send size={18} />
+              </button>
+           </div>
 
-            <div className="grid gap-4">
-              {currentQuestion.shuffled_options.map((opt, oIdx) => {
-                const isSelected = (answers[currentQuestion.id] || []).includes(opt.label);
-                return (
-                  <label 
-                    key={opt.label} 
-                    className={`option-card flex items-start p-4 ${isSelected ? 'selected' : ''}`}
-                  >
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={isSelected}
-                        onChange={() => toggleAnswer(currentQuestion.id, opt.label)}
-                      />
-                      <span className="option-check" aria-hidden="true" />
-                      <div style={{ lineHeight: '1.6' }}>
-                        <span style={{ fontWeight: 800, color: isSelected ? 'var(--primary-color)' : 'var(--text-secondary)', marginRight: '0.75rem', fontSize: '1.1rem' }}>
-                          {String.fromCharCode(65 + oIdx)}.
-                        </span>
-                        <span style={{ fontSize: '1.05rem', color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: isSelected ? 550 : 420 }}>
-                          {opt.text}
-                        </span>
-                      </div>
-                  </label>
-                );
-              })}
-            </div>
-
-            <div className="mt-6">
-              <label className="profile-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                <StickyNote size={16} /> {t('examNoteTitle')}
-              </label>
-              <textarea
-                className="exam-note-area"
+           {/* NOTES SECTION */}
+           <div className="exam-notes-section">
+             <label className="notes-label">
+                <StickyNote size={18} /> {t('examNoteTitle')}
+             </label>
+             <textarea
+                className="notes-textarea"
                 value={notes[currentQuestion.id] || ''}
                 onChange={(e) => setNotes((prev) => ({ ...prev, [currentQuestion.id]: e.target.value }))}
                 placeholder={t('examNotePlaceholder')}
                 rows={3}
-              />
-            </div>
-          </div>
+             />
+           </div>
+        </div>
 
-          {/* Desktop navigator */}
-          <aside className={`glass-card exam-nav ${navOpen ? 'open' : ''}`}>
-            <div className="flex justify-between items-center mb-4">
-              <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{t('examQuestions')}</div>
-              <button className="btn btn-secondary exam-nav-close" type="button" onClick={() => setNavOpen(false)} style={{ padding: '0.4rem 0.7rem', borderRadius: '999px' }}>
-                {t('examClose')}
-              </button>
-            </div>
+        {/* RIGHT COLUMN: NAVIGATOR */}
+        <aside className={`exam-sidebar ${navOpen ? 'open' : ''}`}>
+           <div className="sidebar-header">
+             <h3 className="sidebar-title">{t('examQuestions')}</h3>
+             <button className="btn btn-secondary btn-icon-only nav-close-btn desktop-hidden" onClick={() => setNavOpen(false)}>
+               &times;
+             </button>
+           </div>
+           
+           {/* Desktop Progress */}
+           <div className="sidebar-progress mobile-hidden">
+             <div className="flex justify-between text-xs font-bold text-muted mb-1">
+               <span>{t('examProgress')}</span>
+               <span>{Math.round(progressPercent)}%</span>
+             </div>
+             <div className="progress-track" style={{ height: '6px' }}>
+               <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+             </div>
+           </div>
 
-            <div className="text-sm mb-3" style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
-              <span style={{ color: 'var(--primary-color)', fontWeight: 900 }}>{answeredCount}</span> {t('examAnswered')} • {unansweredCount} {t('examUnanswered')}
-            </div>
-
-            <div className="text-sm mb-3" style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
-              <span style={{ color: '#b45309', fontWeight: 900 }}>{markedCount}</span> {t('examMarkedReview')}
-            </div>
-
-            <div className="exam-nav-grid">
+           <div className="sidebar-grid">
               {questions.map((q, idx) => {
                 const isAnswered = (answers[q.id] || []).length > 0;
                 const isActive = idx === currentIndex;
+                const isMarked = markedForReview[q.id];
+                let btnClass = 'grid-item';
+                if (isActive) btnClass += ' active';
+                if (isAnswered) btnClass += ' answered';
+                if (isMarked) btnClass += ' marked';
+
                 return (
                   <button
                     key={q.id}
-                    type="button"
-                    className={`exam-nav-item ${isActive ? 'active' : ''} ${isAnswered ? 'answered' : ''} ${markedForReview[q.id] ? 'marked' : ''}`}
+                    className={btnClass}
                     onClick={() => goToQuestion(idx)}
                     title={isAnswered ? t('examAnsweredTitle') : t('examUnansweredTitle')}
                   >
@@ -469,16 +447,15 @@ export default function ExamSession() {
                   </button>
                 );
               })}
-            </div>
+           </div>
 
-            <div className="mt-4">
-              <div className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.4, fontWeight: 600 }}>
-                {t('examTip')}
-              </div>
-            </div>
-          </aside>
-        </div>
+           <div className="sidebar-footer">
+              {t('examTip')}
+           </div>
+        </aside>
 
+        {/* OVERLAY FOR MOBILE SIDEBAR */}
+        {navOpen && <div className="exam-sidebar-overlay desktop-hidden" onClick={() => setNavOpen(false)} />}
       </div>
     </div>
   );

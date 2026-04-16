@@ -59,3 +59,17 @@ export type Competition = {
   status: 'open' | 'closed';
   created_at?: string;
 };
+
+export type QuestionMastery = {
+  id: string;
+  user_id: string;
+  question_id: string;
+  session_id: string;
+  correct_count: number;
+  total_attempts: number;
+  wrong_count: number;
+  is_mastered: boolean;
+  last_answer_correct: boolean | null;
+  last_attempted_at?: string;
+  created_at?: string;
+};

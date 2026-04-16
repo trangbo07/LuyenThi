@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck2, Flame, Sparkles, Swords, Trophy } from 'lucide-react';
+import { CalendarCheck2, Flame, Sparkles, Swords, Trophy, BookOpen, Brain, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/useAuth';
 import { useI18n } from '../i18n/I18nProvider';
@@ -42,7 +42,7 @@ function calcStreak(rows: AttemptLite[]) {
 export default function Home() {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [attempts, setAttempts] = useState<AttemptLite[]>([]);
   const [goal, setGoal] = useState<number>(() => {
@@ -93,57 +93,103 @@ export default function Home() {
   }, [attempts]);
 
   const progress = Math.min(100, Math.round((stats.todayCount / Math.max(1, goal)) * 100));
+  const greeting = profile?.full_name ? `${t('homeTitle')}, ${profile.full_name}!` : t('homeTitle');
 
   return (
     <div className="animate-fade-in home-shell">
-      <section className="home-hero">
-        <div>
+      {/* Hero Section */}
+      <section className="home-hero-new">
+        <div className="home-hero-text">
           <div className="home-kicker"><Sparkles size={16} /> {t('homeKicker')}</div>
-          <h1 style={{ marginBottom: '0.45rem' }}>{t('homeTitle')}</h1>
-          <p className="text-muted" style={{ maxWidth: '60ch' }}>
+          <h1>{greeting}</h1>
+          <p className="text-muted" style={{ maxWidth: '55ch', marginBottom: '1.5rem' }}>
             {t('homeSubtitle')}
           </p>
-          <div className="flex gap-3 mt-6" style={{ flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" style={{ borderRadius: '999px' }} onClick={() => navigate('/generate')}>
-              {t('homeStartExam')}
-            </button>
-            <button className="btn btn-secondary" style={{ borderRadius: '999px' }} onClick={() => navigate('/battle/join')}>
-              <Swords size={16} /> {t('navJoinBattle')}
-            </button>
-          </div>
         </div>
-        <div className="home-hero-badge">
-          <Trophy size={18} /> {t('homeKeepStreak')}
-        </div>
-      </section>
-
-      <section className="home-stats-grid">
-        <article className="card home-stat-card">
-          <div className="home-stat-label">{t('homeTotalAttempts')}</div>
-          <div className="home-stat-value">{loading ? '...' : stats.total}</div>
-        </article>
-        <article className="card home-stat-card">
-          <div className="home-stat-label">{t('homeAverageScore')}</div>
-          <div className="home-stat-value">{loading ? '...' : stats.avg.toFixed(2)}</div>
-        </article>
-        <article className="card home-stat-card">
-          <div className="home-stat-label">{t('homeBestScore')}</div>
-          <div className="home-stat-value">{loading ? '...' : stats.best.toFixed(2)}</div>
-        </article>
-        <article className="card home-stat-card">
-          <div className="home-stat-label">{t('homeCurrentStreak')}</div>
-          <div className="home-stat-value"><Flame size={18} /> {loading ? '...' : stats.streak} {t('homeDay')}</div>
-        </article>
-      </section>
-
-      <section className="card home-goal-card">
-        <div className="flex justify-between items-center" style={{ gap: '0.8rem', flexWrap: 'wrap' }}>
+        <div className="home-hero-streak-badge">
+          <Flame size={22} className="streak-flame" />
           <div>
-            <div className="home-stat-label"><CalendarCheck2 size={16} /> {t('homeDailyGoal')}</div>
-            <div className="text-sm text-muted">{t('homeTodayAttempts', { count: stats.todayCount })}</div>
+            <div className="streak-number">{loading ? '...' : stats.streak}</div>
+            <div className="streak-label">{t('homeDay')} streak</div>
           </div>
-          <div className="flex items-center gap-2">
-            <label htmlFor="daily-goal" className="text-sm text-muted">{t('homeTarget')}</label>
+        </div>
+      </section>
+
+      {/* Quick Actions */}
+      <section className="home-quick-actions">
+        <button className="quick-action-card qa-exam" onClick={() => navigate('/generate')}>
+          <div className="qa-icon"><BookOpen size={24} /></div>
+          <div className="qa-text">
+            <div className="qa-title">{t('homeStartExam')}</div>
+            <div className="qa-desc">{t('homeSubtitle')}</div>
+          </div>
+        </button>
+        <button className="quick-action-card qa-practice" onClick={() => navigate('/practice')}>
+          <div className="qa-icon"><Brain size={24} /></div>
+          <div className="qa-text">
+            <div className="qa-title">Smart Practice</div>
+            <div className="qa-desc">Master every question</div>
+          </div>
+        </button>
+        <button className="quick-action-card qa-battle" onClick={() => navigate('/battle/join')}>
+          <div className="qa-icon"><Swords size={24} /></div>
+          <div className="qa-text">
+            <div className="qa-title">{t('navJoinBattle')}</div>
+            <div className="qa-desc">Compete with friends</div>
+          </div>
+        </button>
+        <button className="quick-action-card qa-history" onClick={() => navigate('/history')}>
+          <div className="qa-icon"><Clock size={24} /></div>
+          <div className="qa-text">
+            <div className="qa-title">{t('navHistory')}</div>
+            <div className="qa-desc">Review past exams</div>
+          </div>
+        </button>
+      </section>
+
+      {/* Stats Grid */}
+      <section className="home-stats-grid-new">
+        <article className="home-stat-card-new">
+          <div className="stat-card-icon" style={{ background: 'rgba(15,118,110,0.1)', color: 'var(--primary-color)' }}>
+            <BookOpen size={20} />
+          </div>
+          <div>
+            <div className="stat-card-value animate-count">{loading ? '...' : stats.total}</div>
+            <div className="stat-card-label">{t('homeTotalAttempts')}</div>
+          </div>
+        </article>
+        <article className="home-stat-card-new">
+          <div className="stat-card-icon" style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--success-color)' }}>
+            <Trophy size={20} />
+          </div>
+          <div>
+            <div className="stat-card-value animate-count">{loading ? '...' : stats.avg.toFixed(1)}</div>
+            <div className="stat-card-label">{t('homeAverageScore')}</div>
+          </div>
+        </article>
+        <article className="home-stat-card-new">
+          <div className="stat-card-icon" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--accent-color)' }}>
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <div className="stat-card-value animate-count">{loading ? '...' : stats.best.toFixed(1)}</div>
+            <div className="stat-card-label">{t('homeBestScore')}</div>
+          </div>
+        </article>
+      </section>
+
+      {/* Daily Goal */}
+      <section className="home-goal-card-new">
+        <div className="goal-header">
+          <div className="goal-info">
+            <CalendarCheck2 size={20} />
+            <div>
+              <div className="goal-title">{t('homeDailyGoal')}</div>
+              <div className="goal-progress-text">{stats.todayCount} / {goal} {t('homeTodayAttempts', { count: stats.todayCount }).replace(/^.*?(\d+).*$/, '').trim() || 'completed'}</div>
+            </div>
+          </div>
+          <div className="goal-input-wrap">
+            <label htmlFor="daily-goal">{t('homeTarget')}</label>
             <input
               id="daily-goal"
               type="number"
@@ -151,14 +197,14 @@ export default function Home() {
               max={20}
               value={goal}
               onChange={(e) => setGoal(Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
-              style={{ width: '92px' }}
             />
           </div>
         </div>
-        <div style={{ marginTop: '0.8rem' }}>
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+        <div className="goal-bar-wrapper">
+          <div className="goal-bar-track">
+            <div className="goal-bar-fill" style={{ width: `${progress}%` }} />
           </div>
+          <span className="goal-percent">{progress}%</span>
         </div>
       </section>
     </div>

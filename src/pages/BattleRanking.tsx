@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { RefreshCw, Trophy } from 'lucide-react';
 import PaginationControls from '../components/PaginationControls';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
 
 type DbCompetition = { id: string; code: string };
 
@@ -23,6 +24,7 @@ export default function BattleRanking() {
   const { code } = useParams();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [competition, setCompetition] = useState<DbCompetition | null>(null);
   const [rows, setRows] = useState<LeaderRow[]>([]);
@@ -41,7 +43,7 @@ export default function BattleRanking() {
 
     if (compErr || !comp) {
       setLoading(false);
-      alert(t('battleRoomNotFound'));
+      toast(t('battleRoomNotFound'), 'error');
       navigate('/battle/join');
       return;
     }
@@ -55,7 +57,7 @@ export default function BattleRanking() {
 
     if (error) {
       setLoading(false);
-      alert(t('battleLoadRankingError', { message: error.message }));
+      toast(t('battleLoadRankingError', { message: error.message }), 'error');
       return;
     }
 

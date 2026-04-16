@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 import { formatAuthError } from '../lib/authErrors';
 import { loadOrCreateProfile } from '../lib/profile';
 import { useI18n } from '../i18n/I18nProvider';
+import { useToast } from '../components/Toast';
+import { BookOpen, LogIn, Mail, Lock } from 'lucide-react';
 
 function safeRedirectPath(from: string | undefined): string | null {
   if (!from || from === '/login' || from === '/register') return null;
@@ -13,6 +15,7 @@ function safeRedirectPath(from: string | undefined): string | null {
 export default function Login() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const location = useLocation();
   const state = location.state as { from?: string; message?: string } | null;
   const returnTo = safeRedirectPath(state?.from);
@@ -28,13 +31,15 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setLoading(false);
-      return alert(formatAuthError(error));
+      toast(formatAuthError(error), 'error');
+      return;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoading(false);
-      return alert(t('loginMissingUser'));
+      toast(t('loginMissingUser'), 'error');
+      return;
     }
 
     const profile = await loadOrCreateProfile(user);
@@ -48,51 +53,87 @@ export default function Login() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '520px', margin: '0 auto' }}>
-      <div className="glass-card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ marginBottom: '0.25rem' }}>{t('loginTitle')}</h2>
-        <div className="text-sm" style={{ color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '1rem' }}>
-          {t('loginSubtitle')}
+    <div className="auth-page">
+      {/* Left: Branding */}
+      <div className="auth-brand">
+        <div className="auth-brand-content">
+          <div className="auth-brand-icon">
+            <BookOpen size={40} />
+          </div>
+          <h1 className="auth-brand-title">Exam System Pro</h1>
+          <p className="auth-brand-subtitle">{t('loginSubtitle')}</p>
+          <div className="auth-brand-features">
+            <div className="auth-feature-item">
+              <span className="auth-feature-dot" />
+              {t('homeKicker')}
+            </div>
+            <div className="auth-feature-item">
+              <span className="auth-feature-dot" />
+              Smart Practice Mode
+            </div>
+            <div className="auth-feature-item">
+              <span className="auth-feature-dot" />
+              Battle & Competition
+            </div>
+          </div>
         </div>
+        <div className="auth-brand-decoration" />
+      </div>
 
-        {bannerMessage && (
-          <div
-            role="status"
-            style={{
-              marginBottom: '1rem',
-              padding: '0.75rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(79, 70, 229, 0.08)',
-              border: '1px solid rgba(79, 70, 229, 0.25)',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-            }}
-          >
-            {bannerMessage}
-          </div>
-        )}
-
-        <form onSubmit={onSubmit} className="grid gap-4">
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('loginEmail')}</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder={t('loginEmailPlaceholder')} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.35rem' }}>{t('loginPassword')}</label>
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder={t('loginPasswordPlaceholder')} />
+      {/* Right: Form */}
+      <div className="auth-form-wrapper">
+        <div className="auth-form-card animate-fade-in">
+          <div className="auth-form-header">
+            <h2>{t('loginTitle')}</h2>
+            <p className="text-muted">{t('loginSubtitle')}</p>
           </div>
 
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '0.95rem', borderRadius: '999px' }}>
-            {loading ? t('loginLoading') : t('loginButton')}
-          </button>
-        </form>
+          {bannerMessage && (
+            <div className="auth-banner">
+              {bannerMessage}
+            </div>
+          )}
 
-        <div className="text-sm" style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          {t('loginNoAccount')} <Link to="/register">{t('loginCreateOne')}</Link>
+          <form onSubmit={onSubmit} className="auth-form">
+            <div className="auth-input-group">
+              <label>{t('loginEmail')}</label>
+              <div className="auth-input-icon-wrap">
+                <Mail size={18} className="auth-input-icon" />
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  required
+                  placeholder={t('loginEmailPlaceholder')}
+                />
+              </div>
+            </div>
+
+            <div className="auth-input-group">
+              <label>{t('loginPassword')}</label>
+              <div className="auth-input-icon-wrap">
+                <Lock size={18} className="auth-input-icon" />
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  required
+                  placeholder={t('loginPasswordPlaceholder')}
+                />
+              </div>
+            </div>
+
+            <button className="btn btn-primary auth-submit-btn" type="submit" disabled={loading}>
+              <LogIn size={18} />
+              {loading ? t('loginLoading') : t('loginButton')}
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            {t('loginNoAccount')} <Link to="/register">{t('loginCreateOne')}</Link>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
