@@ -31,19 +31,13 @@ import LearnQuiz from './pages/LearnQuiz';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { useI18n } from './i18n/I18nProvider';
 
-function Nav() {
+type NavProps = { mobileMenuOpen: boolean; setMobileMenuOpen: (v: boolean) => void };
+
+function Nav({ mobileMenuOpen, setMobileMenuOpen }: NavProps) {
   const { user, profile, role, signOut } = useAuth();
   const { t } = useI18n();
   const location = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [mobileMenuOpen]);
 
   const handleSignOut = async () => {
     if (loggingOut) return;
@@ -65,21 +59,12 @@ function Nav() {
   const closeMenu = () => setMobileMenuOpen(false);
   const p = location.pathname;
 
-  const showMobileDock = Boolean(user)
-    && !p.startsWith('/admin')
-    && !p.startsWith('/exam')
-    && !p.startsWith('/result')
-    && !p.startsWith('/practice/session')
-    && !p.startsWith('/learn/');
-
-  // Active helpers for paths that don't match exactly
+  // Active helpers
   const isExam     = p.startsWith('/generate') || p.startsWith('/exam') || p.startsWith('/result');
   const isHistory  = p.startsWith('/history') || p.startsWith('/attempt');
   const isBattle   = p.startsWith('/battle');
   const isPractice = p.startsWith('/practice');
   const isLearn    = p.startsWith('/learn');
-
-  const dockCls = (active: boolean) => `mobile-dock-item${active ? ' active' : ''}`;
 
   // NavLink className helpers
   const desktopCls = (active: boolean) =>
@@ -95,25 +80,14 @@ function Nav() {
       <div className="container navbar-inner">
         <div className="navbar-row">
 
-          {/* Hamburger (mobile) */}
-          <button
-            type="button"
-            className="navbar-menu-trigger"
-            aria-expanded={mobileMenuOpen}
-            aria-label={mobileMenuOpen ? t('navCloseMenu') : t('navOpenMenu')}
-            onClick={() => setMobileMenuOpen(o => !o)}
-          >
-            {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
-          </button>
-
-          {/* Brand */}
+          {/* Logo — trái */}
           <Link to="/" className="logo" onClick={closeMenu}>
             <BookOpen size={22} className="shrink-0" />
             <span className="logo-full">{t('navBrandFull')}</span>
             <span className="logo-short" aria-hidden="true">{t('navBrandShort')}</span>
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop links (ẩn trên mobile) */}
           <div className="navbar-links-desktop">
             {role === 'admin' && (
               <NavLink to="/admin" className={({ isActive }) => desktopCls(isActive)}>
@@ -129,9 +103,7 @@ function Nav() {
                 <NavLink to="/battle/join" className={() => desktopCls(isBattle)}><Swords size={17} /> {t('navJoinBattle')}</NavLink>
               </>
             )}
-
             <div className="navbar-divider" />
-
             {!user ? (
               <div className="flex items-center gap-3">
                 <LanguageSwitcher compact />
@@ -141,38 +113,34 @@ function Nav() {
               <div className="flex items-center gap-2 navbar-user-actions">
                 <LanguageSwitcher compact />
                 <Link to="/profile" className="navbar-avatar-btn" title={displayName}>
-                  <span className="navbar-avatar-circle">
-                    {displayName.charAt(0).toUpperCase()}
-                  </span>
+                  <span className="navbar-avatar-circle">{displayName.charAt(0).toUpperCase()}</span>
                   <span className="navbar-avatar-name">{displayName}</span>
                 </Link>
-                <button
-                  type="button"
-                  className="navbar-signout-btn"
-                  onClick={handleSignOut}
-                  disabled={loggingOut}
-                  title={signOutText}
-                >
+                <button type="button" className="navbar-signout-btn" onClick={handleSignOut} disabled={loggingOut} title={signOutText}>
                   <LogOut size={17} />
                 </button>
               </div>
             )}
           </div>
+
+          {/* Hamburger — phải, chỉ mobile */}
+          <button
+            type="button"
+            className="navbar-menu-trigger"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? t('navCloseMenu') : t('navOpenMenu')}
+            onClick={() => setMobileMenuOpen(o => !o)}
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
       </div>
 
-      {/* Backdrop */}
-      {mobileMenuOpen && (
-        <button type="button" className="navbar-backdrop" aria-label={t('navCloseMenu')} onClick={closeMenu} />
-      )}
-
-      {/* Mobile slide-in sheet */}
+      {/* Sheet — mở từ hamburger */}
       <div className={`navbar-sheet ${mobileMenuOpen ? 'open' : ''}`} id="mobile-nav">
-        {/* Sheet header */}
         <div className="navbar-sheet-header">
-          <Link to="/" className="logo" style={{ fontSize: '1.05rem' }} onClick={closeMenu}>
-            <BookOpen size={20} />
-            {t('navBrandFull')}
+          <Link to="/" className="logo" style={{ fontSize: '1rem' }} onClick={closeMenu}>
+            <BookOpen size={20} /> {t('navBrandFull')}
           </Link>
           <button type="button" className="navbar-sheet-close" aria-label={t('navCloseMenu')} onClick={closeMenu}>
             <X size={22} />
@@ -185,30 +153,25 @@ function Nav() {
               <LayoutDashboard size={20} /> {t('navDashboard')}
             </NavLink>
           )}
-
-          {user && (
+          {user ? (
             <>
               <p className="navbar-sheet-section-label">Học tập</p>
-              <NavLink to="/generate" className={() => sheetCls(isExam)} onClick={closeMenu}><PlayCircle size={20} /> {t('navExam')}</NavLink>
-              <NavLink to="/practice" className={() => sheetCls(isPractice)} onClick={closeMenu}><GraduationCap size={20} /> {t('navPractice')}</NavLink>
-              <NavLink to="/learn" className={() => sheetCls(isLearn)} onClick={closeMenu}><Layers size={20} /> Học Mock</NavLink>
-
+              <NavLink to="/generate"   className={() => sheetCls(isExam)}     onClick={closeMenu}><PlayCircle size={20} />   {t('navExam')}</NavLink>
+              <NavLink to="/practice"   className={() => sheetCls(isPractice)} onClick={closeMenu}><GraduationCap size={20} /> {t('navPractice')}</NavLink>
+              <NavLink to="/learn"      className={() => sheetCls(isLearn)}    onClick={closeMenu}><Layers size={20} />        Học Mock</NavLink>
               <p className="navbar-sheet-section-label">Tiện ích</p>
-              <NavLink to="/history" className={() => sheetCls(isHistory)} onClick={closeMenu}><HistoryIcon size={20} /> {t('navHistory')}</NavLink>
-              <NavLink to="/battle/join" className={() => sheetCls(isBattle)} onClick={closeMenu}><Swords size={20} /> {t('navJoinBattle')}</NavLink>
-              <div style={{ padding: '0.25rem 0.5rem' }}><LanguageSwitcher compact /></div>
+              <NavLink to="/history"    className={() => sheetCls(isHistory)}  onClick={closeMenu}><HistoryIcon size={20} />   {t('navHistory')}</NavLink>
+              <NavLink to="/battle/join" className={() => sheetCls(isBattle)}  onClick={closeMenu}><Swords size={20} />        {t('navJoinBattle')}</NavLink>
+              <div style={{ padding: '0.5rem 0.5rem 0' }}><LanguageSwitcher compact /></div>
             </>
-          )}
-
-          {!user && (
+          ) : (
             <>
-              <div style={{ padding: '0.25rem 0.5rem' }}><LanguageSwitcher compact /></div>
               <NavLink to="/login" className={() => sheetCls(p === '/login')} onClick={closeMenu}>{t('navLogIn')}</NavLink>
+              <div style={{ padding: '0.5rem 0.5rem 0' }}><LanguageSwitcher compact /></div>
             </>
           )}
         </div>
 
-        {/* Sheet user footer */}
         {user && (
           <div className="navbar-sheet-footer">
             <Link to="/profile" className="navbar-sheet-profile" onClick={closeMenu}>
@@ -218,51 +181,22 @@ function Nav() {
                 <span className="navbar-sheet-profile-sub">{t('navProfile')}</span>
               </div>
             </Link>
-            <button
-              type="button"
-              className="navbar-sheet-signout-btn"
-              onClick={() => { closeMenu(); void handleSignOut(); }}
-              disabled={loggingOut}
-              title={signOutText}
-            >
+            <button type="button" className="navbar-sheet-signout-btn" onClick={() => { closeMenu(); void handleSignOut(); }} disabled={loggingOut} title={signOutText}>
               <LogOut size={18} />
             </button>
           </div>
         )}
       </div>
-
-      {/* Mobile bottom dock — 5 items, no Home (logo handles it) */}
-      {showMobileDock && (
-        <nav className="mobile-dock" aria-label="Mobile navigation">
-          <Link to="/practice" className={dockCls(isPractice)}>
-            <GraduationCap size={21} />
-            <span>Luyện tập</span>
-          </Link>
-          <Link to="/learn" className={dockCls(isLearn)}>
-            <Layers size={21} />
-            <span>Mock</span>
-          </Link>
-          <Link to="/generate" className={`${dockCls(isExam)} mobile-dock-center`}>
-            <PlayCircle size={24} />
-            <span>Thi thử</span>
-          </Link>
-          <Link to="/history" className={dockCls(isHistory)}>
-            <HistoryIcon size={21} />
-            <span>Lịch sử</span>
-          </Link>
-          <Link to="/battle/join" className={dockCls(isBattle)}>
-            <Swords size={21} />
-            <span>Battle</span>
-          </Link>
-        </nav>
-      )}
     </nav>
   );
 }
 
-function LayoutMain() {
+function LayoutMain({ onOverlayClick }: { onOverlayClick?: () => void }) {
   return (
-    <main className="container main-app-content mt-4 animate-fade-in">
+    <main
+      className="container main-app-content mt-4 animate-fade-in"
+      onClick={onOverlayClick}
+    >
       <Outlet />
     </main>
   );
@@ -270,11 +204,34 @@ function LayoutMain() {
 
 function AppShell() {
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const hideMainNav = location.pathname.startsWith('/admin');
+
+  // Đóng sheet khi đổi trang + lock scroll body
+  useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [mobileMenuOpen]);
+
+  const closeMenu = () => setMobileMenuOpen(false);
 
   return (
     <>
-      {!hideMainNav && <Nav />}
+      {!hideMainNav && <Nav mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />}
+
+      {/* Backdrop ở ROOT LEVEL — overlay toàn bộ kể cả main content */}
+      {mobileMenuOpen && !hideMainNav && (
+        <button
+          type="button"
+          className="navbar-backdrop"
+          aria-label="Đóng menu"
+          onClick={closeMenu}
+        />
+      )}
+
       <Routes>
         <Route
           path="/admin"
@@ -291,7 +248,7 @@ function AppShell() {
           <Route path="battle/manage" element={<BattleManage />} />
         </Route>
 
-        <Route element={<LayoutMain />}>
+        <Route element={<LayoutMain onOverlayClick={mobileMenuOpen ? closeMenu : undefined} />}>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

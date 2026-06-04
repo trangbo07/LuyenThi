@@ -314,14 +314,14 @@ tr:hover td {
 .navbar {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 56;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(15, 118, 110, 0.09);
   box-shadow: 0 1px 0 rgba(0,0,0,0.05), 0 4px 20px rgba(15, 23, 42, 0.04);
-  padding-top: max(0.55rem, var(--safe-top));
-  padding-bottom: 0.55rem;
+  padding-top: max(0.4rem, var(--safe-top));
+  padding-bottom: 0.4rem;
 }
 
 .navbar-inner { width: 100%; }
@@ -331,17 +331,17 @@ tr:hover td {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  min-height: 2.6rem;
+  height: 44px; /* fixed height — không bị phồng bởi children */
 }
 
-/* ── Hamburger ── */
+/* ── Hamburger — mobile only, RIGHT side ── */
 .navbar-menu-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
-  margin-left: -0.3rem;
+  margin-right: -0.3rem;
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -351,7 +351,7 @@ tr:hover td {
   flex-shrink: 0;
 }
 .navbar-menu-trigger:hover {
-  background: rgba(15, 118, 110, 0.07);
+  background: rgba(15, 118, 110, 0.08);
   color: var(--primary-color);
 }
 
@@ -519,25 +519,76 @@ tr:hover td {
 .lang-switcher--compact .lang-switcher-label { font-size: 0.75rem; }
 .lang-switcher--compact .lang-switcher-select { min-width: 52px; font-size: 0.82rem; }
 
-/* ── Desktop breakpoint ── */
+/* ── Mobile right area (avatar / login) ── */
+.navbar-mobile-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.navbar-avatar-btn-solo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border-radius: 50%;
+  transition: opacity 0.15s;
+}
+.navbar-avatar-btn-solo:hover { opacity: 0.8; }
+.navbar-avatar-btn-solo .navbar-avatar-circle {
+  width: 32px;
+  height: 32px;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+/* Login button trong top bar — standalone, không kế thừa .btn */
+.navbar-login-btn-mobile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 999px;
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.navbar-login-btn-mobile:hover {
+  background-color: var(--primary-hover);
+}
+
+.navbar-login-btn-mobile {
+  padding: 0.38rem 0.9rem !important;
+  font-size: 0.84rem !important;
+  border-radius: 999px !important;
+}
+
+/* ── Desktop: ẩn hamburger, hiện nav links ── */
 @media (min-width: 1024px) {
-  .navbar-menu-trigger { display: none; }
+  .navbar-menu-trigger  { display: none; }
   .navbar-links-desktop { display: flex; }
   .logo-full  { display: inline; }
   .logo-short { display: none; }
 }
 
-/* ── Backdrop ── */
+/* ── Backdrop — che phần bên trái, làm mờ để sheet nổi bật ── */
 .navbar-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 54;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  z-index: 54; /* dưới navbar (56) nhưng trên main content */
+  background: rgba(10, 20, 30, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   border: none;
   cursor: pointer;
-  animation: fadeIn 0.18s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 /* ═══════════════════════════════════════════
@@ -548,96 +599,101 @@ tr:hover td {
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 55;
-  width: min(100% - 3rem, 18rem);
-  background: #ffffff;
-  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.14);
+  z-index: 58; /* cao nhất — trên navbar (56) và backdrop (54) */
+  width: min(80vw, 17rem);
+  height: 100%;           /* full chiều cao màn hình */
+  height: 100dvh;         /* dynamic viewport — đúng trên mobile khi có thanh địa chỉ */
+  background: #fff;
+  box-shadow: -6px 0 32px rgba(0, 0, 0, 0.18);
   transform: translateX(100%);
-  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
-  overflow: hidden;
+  will-change: transform;
 }
 .navbar-sheet.open { transform: translateX(0); }
 
+/* Header */
 .navbar-sheet-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem 0.75rem 0.9rem 1rem;
+  padding: 0.85rem 0.75rem 0.85rem 1rem;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  padding-top: max(0.85rem, var(--safe-top));
 }
 .navbar-sheet-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
+  flex-shrink: 0;
 }
-.navbar-sheet-close:hover { background: #f1f5f9; color: var(--text-primary); }
+.navbar-sheet-close:hover { background: #f1f5f9; }
 
+/* Links — fills space, scrolls if needed */
 .navbar-sheet-links {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem 0.5rem 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
 /* Section label */
 .navbar-sheet-section-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   color: var(--text-secondary);
-  padding: 0.85rem 0.75rem 0.25rem;
-  opacity: 0.65;
+  padding: 0.75rem 0.6rem 0.2rem;
+  opacity: 0.6;
+  margin: 0;
 }
 
-/* Sheet nav item */
+/* Nav item trong sheet */
 .nav-item--sheet {
-  min-height: 46px;
-  padding: 0.7rem 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 48px;
+  padding: 0 0.75rem;
   border-radius: var(--radius-md);
-  gap: 0.7rem;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   font-weight: 600;
   color: var(--text-primary);
+  text-decoration: none;
   border: none;
   background: transparent;
-  text-align: left;
   cursor: pointer;
-  transition: var(--transition);
+  transition: background 0.14s, color 0.14s;
+  width: 100%;
+  text-align: left;
 }
-a.nav-item--sheet { color: var(--text-primary); text-decoration: none; }
-.nav-item--sheet:hover,
-.nav-item--sheet:focus-visible {
-  background: rgba(15, 118, 110, 0.07);
-  color: var(--primary-color);
-  outline: none;
-}
+.nav-item--sheet:hover { background: rgba(15,118,110,0.07); color: var(--primary-color); }
+.nav-item--sheet:active { background: rgba(15,118,110,0.12); }
 .nav-item--sheet-active {
-  background: rgba(15, 118, 110, 0.1) !important;
+  background: rgba(15,118,110,0.1) !important;
   color: var(--primary-color) !important;
   font-weight: 700;
 }
 
-/* Sheet footer (user) */
+/* Footer — user profile + logout */
 .navbar-sheet-footer {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 0.75rem calc(0.75rem + var(--safe-bottom));
+  padding: 0.65rem 0.65rem max(0.65rem, var(--safe-bottom));
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
   background: #fafafa;
@@ -700,92 +756,14 @@ a.nav-item--sheet { color: var(--text-primary); text-decoration: none; }
   .main-app-content { padding: 2rem 0 2.5rem; }
 }
 
-/* ═══════════════════════════════════════════
-   MOBILE BOTTOM DOCK
-═══════════════════════════════════════════ */
+/* bottom dock đã bị xoá — dùng hamburger sheet thay thế */
 .mobile-dock { display: none; }
 
 @media (max-width: 1023.98px) {
-  .mobile-dock {
-    position: fixed;
-    left: max(0.75rem, var(--safe-left));
-    right: max(0.75rem, var(--safe-right));
-    bottom: calc(0.5rem + var(--safe-bottom));
-    z-index: 70;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.35rem 0.35rem;
-    border-radius: 1.1rem;
-    border: 1px solid rgba(15, 118, 110, 0.15);
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow:
-      0 2px 8px rgba(0,0,0,0.06),
-      0 12px 32px rgba(15, 23, 42, 0.12);
-  }
-
-  .mobile-dock-item {
-    min-height: 54px;
-    border-radius: 0.85rem;
-    text-decoration: none;
-    color: var(--text-secondary);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.18rem;
-    font-size: 0.63rem;
-    font-weight: 700;
-    text-align: center;
-    padding: 0.4rem 0.2rem;
-    transition: color 0.15s, background 0.15s;
-    position: relative;
-  }
-
-  .mobile-dock-item:hover {
-    color: var(--primary-color);
-    background: rgba(15, 118, 110, 0.06);
-  }
-
-  .mobile-dock-item.active {
-    color: var(--primary-color);
-    background: rgba(15, 118, 110, 0.1);
-  }
-  .mobile-dock-item.active::after {
-    content: '';
-    position: absolute;
-    bottom: 5px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 18px;
-    height: 3px;
-    border-radius: 999px;
-    background: var(--primary-color);
-  }
-
-  /* Center "Thi thử" button — slightly elevated */
-  .mobile-dock-center {
-    background: linear-gradient(135deg, #0f766e, #0d9488) !important;
-    color: white !important;
-    border-radius: 1rem;
-    box-shadow: 0 4px 12px rgba(15, 118, 110, 0.35);
-    margin: -4px 0;
-    min-height: 58px;
-  }
-  .mobile-dock-center.active,
-  .mobile-dock-center:hover {
-    background: linear-gradient(135deg, #0d9488, #0f766e) !important;
-    color: white !important;
-  }
-  .mobile-dock-center::after { display: none !important; }
-
   .main-app-content {
-    padding-bottom: calc(5.5rem + var(--safe-bottom));
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-bottom: calc(1.5rem + var(--safe-bottom));
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
 
@@ -3966,10 +3944,8 @@ a.nav-item--sheet { color: var(--text-primary); text-decoration: none; }
 /* ===================== PROFILE VIEW ===================== */
 
 .profile-page-container {
-  max-width: 900px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 2rem 1rem;
-  padding-bottom: 80px;
 }
 
 .profile-hero-new {
@@ -4031,6 +4007,7 @@ a.nav-item--sheet { color: var(--text-primary); text-decoration: none; }
   background: white;
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
+  min-width: 0; /* cho phép shrink trong grid */
   padding: 2.5rem;
   box-shadow: var(--shadow-sm);
 }
@@ -4108,16 +4085,40 @@ a.nav-item--sheet { color: var(--text-primary); text-decoration: none; }
   margin-bottom: 0.25rem;
 }
 
+.detail-content {
+  min-width: 0; /* cho phép text truncate trong flex */
+}
+
 .detail-value {
   font-weight: 800;
   font-size: 1.05rem;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+.profile-detail-item {
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
+  .profile-page-container {
+    /* padding đã nằm ở main-app-content rồi, không cần thêm */
+  }
+
   .profile-hero-new {
     flex-direction: column;
     text-align: center;
   }
+
+  .profile-card {
+    padding: 1.25rem; /* giảm padding trên mobile */
+    border-radius: var(--radius-lg);
+  }
+
+  .profile-content-grid {
+    gap: 0.85rem;
+  }
+
   .home-hero-new { flex-direction: column; text-align: center; gap: 1.5rem; }
   .home-kicker { margin: 0 auto 1rem; }
   .home-hero-streak-badge { width: 100%; justify-content: center; }
