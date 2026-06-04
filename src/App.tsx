@@ -129,7 +129,7 @@ function Nav({ mobileMenuOpen, setMobileMenuOpen }: NavProps) {
             className="navbar-menu-trigger"
             aria-expanded={mobileMenuOpen}
             aria-label={mobileMenuOpen ? t('navCloseMenu') : t('navOpenMenu')}
-            onClick={() => setMobileMenuOpen(o => !o)}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
