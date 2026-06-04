@@ -109,9 +109,7 @@ export default function LearnQuiz() {
             mock_index: idx,
             stars: newStars,
             best_score: newBest,
-            attempts: (existing as { attempts?: number } | null)?.attempts
-              ? ((existing as { attempts: number }).attempts + 1)
-              : 1,
+            attempts: ((existing as unknown as { attempts?: number } | null)?.attempts ?? 0) + 1,
           },
           { onConflict: 'user_id,session_id,mock_index' }
         );

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X, UserRound, GraduationCap, Layers } from 'lucide-react';
+import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X, GraduationCap, Layers } from 'lucide-react';
 import Home from './pages/Home';
 import QuestionBank from './pages/QuestionBank';
 import ImportQuestions from './pages/Import';
