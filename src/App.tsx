@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X, UserRound, House, GraduationCap, ChevronRight } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BookOpen, LayoutDashboard, PlayCircle, History as HistoryIcon, Swords, LogOut, Menu, X, UserRound, GraduationCap, Layers } from 'lucide-react';
 import Home from './pages/Home';
 import QuestionBank from './pages/QuestionBank';
 import ImportQuestions from './pages/Import';
@@ -25,6 +25,9 @@ import Profile from './pages/Profile';
 import PracticeSetup from './pages/PracticeSetup';
 import PracticeSession from './pages/PracticeSession';
 import PracticeProgress from './pages/PracticeProgress';
+import LearnMap from './pages/LearnMap';
+import LearnStudy from './pages/LearnStudy';
+import LearnQuiz from './pages/LearnQuiz';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { useI18n } from './i18n/I18nProvider';
 
@@ -39,16 +42,14 @@ function Nav() {
     if (!mobileMenuOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return () => { document.body.style.overflow = prev; };
   }, [mobileMenuOpen]);
 
   const handleSignOut = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
     let fallbackNavigated = false;
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       fallbackNavigated = true;
       clearSupabaseAuthStorage();
       window.location.replace('/login');
@@ -56,61 +57,76 @@ function Nav() {
     try {
       await signOut();
     } finally {
-      window.clearTimeout(t);
-      if (!fallbackNavigated) {
-        window.location.replace('/login');
-      }
+      window.clearTimeout(timer);
+      if (!fallbackNavigated) window.location.replace('/login');
     }
   };
 
   const closeMenu = () => setMobileMenuOpen(false);
-  const pathname = location.pathname;
-  const showMobileDock = Boolean(user) && !pathname.startsWith('/admin') && !pathname.startsWith('/exam') && !pathname.startsWith('/result') && !pathname.startsWith('/practice/session');
+  const p = location.pathname;
 
-  const dockActive = (key: 'home' | 'exam' | 'history' | 'battle' | 'practice' | 'profile') => {
-    if (key === 'home') return pathname === '/';
-    if (key === 'exam') return pathname.startsWith('/generate') || pathname.startsWith('/exam') || pathname.startsWith('/result');
-    if (key === 'history') return pathname.startsWith('/history') || pathname.startsWith('/attempt');
-    if (key === 'battle') return pathname.startsWith('/battle');
-    if (key === 'practice') return pathname.startsWith('/practice');
-    return pathname.startsWith('/profile');
-  };
+  const showMobileDock = Boolean(user)
+    && !p.startsWith('/admin')
+    && !p.startsWith('/exam')
+    && !p.startsWith('/result')
+    && !p.startsWith('/practice/session')
+    && !p.startsWith('/learn/');
 
-  const navLinkClass = 'nav-item nav-item--sheet flex items-center gap-2';
+  // Active helpers for paths that don't match exactly
+  const isExam     = p.startsWith('/generate') || p.startsWith('/exam') || p.startsWith('/result');
+  const isHistory  = p.startsWith('/history') || p.startsWith('/attempt');
+  const isBattle   = p.startsWith('/battle');
+  const isPractice = p.startsWith('/practice');
+  const isLearn    = p.startsWith('/learn');
+
+  const dockCls = (active: boolean) => `mobile-dock-item${active ? ' active' : ''}`;
+
+  // NavLink className helpers
+  const desktopCls = (active: boolean) =>
+    `nav-item nav-item--desktop flex items-center gap-2${active ? ' nav-item--active' : ''}`;
+  const sheetCls = (active: boolean) =>
+    `nav-item nav-item--sheet flex items-center gap-2${active ? ' nav-item--sheet-active' : ''}`;
+
   const signOutText = loggingOut ? t('navSigningOut') : t('navSignOut');
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || t('navSignedIn');
 
   return (
     <nav className="navbar">
       <div className="container navbar-inner">
         <div className="navbar-row">
+
+          {/* Hamburger (mobile) */}
           <button
             type="button"
             className="navbar-menu-trigger"
             aria-expanded={mobileMenuOpen}
             aria-label={mobileMenuOpen ? t('navCloseMenu') : t('navOpenMenu')}
-            onClick={() => setMobileMenuOpen((o) => !o)}
+            onClick={() => setMobileMenuOpen(o => !o)}
           >
-            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
           </button>
 
+          {/* Brand */}
           <Link to="/" className="logo" onClick={closeMenu}>
-            <BookOpen size={24} className="shrink-0" />
+            <BookOpen size={22} className="shrink-0" />
             <span className="logo-full">{t('navBrandFull')}</span>
             <span className="logo-short" aria-hidden="true">{t('navBrandShort')}</span>
           </Link>
 
+          {/* Desktop nav */}
           <div className="navbar-links-desktop">
             {role === 'admin' && (
-              <Link to="/admin" className="nav-item flex items-center gap-2">
-                <LayoutDashboard size={18} /> {t('navDashboard')}
-              </Link>
+              <NavLink to="/admin" className={({ isActive }) => desktopCls(isActive)}>
+                <LayoutDashboard size={17} /> {t('navDashboard')}
+              </NavLink>
             )}
             {user && (
               <>
-                <Link to="/generate" className="nav-item flex items-center gap-2"><PlayCircle size={18} /> {t('navExam')}</Link>
-                <Link to="/practice" className="nav-item flex items-center gap-2"><GraduationCap size={18} /> {t('navPractice')}</Link>
-                <Link to="/history" className="nav-item flex items-center gap-2"><HistoryIcon size={18} /> {t('navHistory')}</Link>
-                <Link to="/battle/join" className="nav-item flex items-center gap-2"><Swords size={18} /> {t('navJoinBattle')}</Link>
+                <NavLink to="/generate" className={() => desktopCls(isExam)}><PlayCircle size={17} /> {t('navExam')}</NavLink>
+                <NavLink to="/practice" className={() => desktopCls(isPractice)}><GraduationCap size={17} /> {t('navPractice')}</NavLink>
+                <NavLink to="/learn" className={() => desktopCls(isLearn)}><Layers size={17} /> Học Mock</NavLink>
+                <NavLink to="/history" className={() => desktopCls(isHistory)}><HistoryIcon size={17} /> {t('navHistory')}</NavLink>
+                <NavLink to="/battle/join" className={() => desktopCls(isBattle)}><Swords size={17} /> {t('navJoinBattle')}</NavLink>
               </>
             )}
 
@@ -124,20 +140,20 @@ function Nav() {
             ) : (
               <div className="flex items-center gap-2 navbar-user-actions">
                 <LanguageSwitcher compact />
-                <Link to="/profile" className="text-sm navbar-user-pill navbar-profile-link" title={profile?.full_name || user.email || ''}>
-                  <UserRound size={16} />
-                  <span>{profile?.full_name || user.email || t('navSignedIn')}</span>
-                  <ChevronRight size={15} className="navbar-profile-link-arrow" />
+                <Link to="/profile" className="navbar-avatar-btn" title={displayName}>
+                  <span className="navbar-avatar-circle">
+                    {displayName.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="navbar-avatar-name">{displayName}</span>
                 </Link>
                 <button
                   type="button"
-                  className="btn btn-secondary flex items-center gap-2 navbar-signout-btn"
+                  className="navbar-signout-btn"
                   onClick={handleSignOut}
                   disabled={loggingOut}
-                  title={t('navSignOut')}
+                  title={signOutText}
                 >
-                  <LogOut size={18} />
-                  <span className="navbar-signout-text">{signOutText}</span>
+                  <LogOut size={17} />
                 </button>
               </div>
             )}
@@ -145,82 +161,100 @@ function Nav() {
         </div>
       </div>
 
+      {/* Backdrop */}
       {mobileMenuOpen && (
         <button type="button" className="navbar-backdrop" aria-label={t('navCloseMenu')} onClick={closeMenu} />
       )}
 
+      {/* Mobile slide-in sheet */}
       <div className={`navbar-sheet ${mobileMenuOpen ? 'open' : ''}`} id="mobile-nav">
+        {/* Sheet header */}
         <div className="navbar-sheet-header">
-          <span className="navbar-sheet-title">{t('navMenu')}</span>
-          <button type="button" className="navbar-sheet-close" aria-label={t('examClose')} onClick={closeMenu}>
+          <Link to="/" className="logo" style={{ fontSize: '1.05rem' }} onClick={closeMenu}>
+            <BookOpen size={20} />
+            {t('navBrandFull')}
+          </Link>
+          <button type="button" className="navbar-sheet-close" aria-label={t('navCloseMenu')} onClick={closeMenu}>
             <X size={22} />
           </button>
         </div>
+
         <div className="navbar-sheet-links">
           {role === 'admin' && (
-            <Link to="/admin" className={navLinkClass} onClick={closeMenu}>
+            <NavLink to="/admin" className={({ isActive }) => sheetCls(isActive)} onClick={closeMenu}>
               <LayoutDashboard size={20} /> {t('navDashboard')}
-            </Link>
+            </NavLink>
           )}
+
           {user && (
             <>
-              <Link to="/generate" className={navLinkClass} onClick={closeMenu}><PlayCircle size={20} /> {t('navExam')}</Link>
-              <Link to="/practice" className={navLinkClass} onClick={closeMenu}><GraduationCap size={20} /> {t('navPractice')}</Link>
-              <Link to="/history" className={navLinkClass} onClick={closeMenu}><HistoryIcon size={20} /> {t('navHistory')}</Link>
-              <Link to="/battle/join" className={navLinkClass} onClick={closeMenu}><Swords size={20} /> {t('navJoinBattle')}</Link>
-              <LanguageSwitcher compact />
+              <p className="navbar-sheet-section-label">Học tập</p>
+              <NavLink to="/generate" className={() => sheetCls(isExam)} onClick={closeMenu}><PlayCircle size={20} /> {t('navExam')}</NavLink>
+              <NavLink to="/practice" className={() => sheetCls(isPractice)} onClick={closeMenu}><GraduationCap size={20} /> {t('navPractice')}</NavLink>
+              <NavLink to="/learn" className={() => sheetCls(isLearn)} onClick={closeMenu}><Layers size={20} /> Học Mock</NavLink>
+
+              <p className="navbar-sheet-section-label">Tiện ích</p>
+              <NavLink to="/history" className={() => sheetCls(isHistory)} onClick={closeMenu}><HistoryIcon size={20} /> {t('navHistory')}</NavLink>
+              <NavLink to="/battle/join" className={() => sheetCls(isBattle)} onClick={closeMenu}><Swords size={20} /> {t('navJoinBattle')}</NavLink>
+              <div style={{ padding: '0.25rem 0.5rem' }}><LanguageSwitcher compact /></div>
             </>
           )}
-          {!user ? (
+
+          {!user && (
             <>
-              <LanguageSwitcher compact />
-              <Link to="/login" className={navLinkClass} onClick={closeMenu}>{t('navLogIn')}</Link>
-            </>
-          ) : (
-            <>
-              <Link to="/profile" className="navbar-sheet-user" onClick={closeMenu}>
-                <span className="inline-flex items-center gap-2"><UserRound size={16} /> {profile?.full_name || user.email}</span>
-                <span>{t('navProfile')}</span>
-              </Link>
-              <button
-                type="button"
-                className={`${navLinkClass} navbar-sheet-signout`}
-                onClick={() => {
-                  closeMenu();
-                  void handleSignOut();
-                }}
-                disabled={loggingOut}
-              >
-                <LogOut size={20} /> {signOutText}
-              </button>
+              <div style={{ padding: '0.25rem 0.5rem' }}><LanguageSwitcher compact /></div>
+              <NavLink to="/login" className={() => sheetCls(p === '/login')} onClick={closeMenu}>{t('navLogIn')}</NavLink>
             </>
           )}
         </div>
+
+        {/* Sheet user footer */}
+        {user && (
+          <div className="navbar-sheet-footer">
+            <Link to="/profile" className="navbar-sheet-profile" onClick={closeMenu}>
+              <span className="navbar-avatar-circle">{displayName.charAt(0).toUpperCase()}</span>
+              <div className="navbar-sheet-profile-info">
+                <span className="navbar-sheet-profile-name">{displayName}</span>
+                <span className="navbar-sheet-profile-sub">{t('navProfile')}</span>
+              </div>
+            </Link>
+            <button
+              type="button"
+              className="navbar-sheet-signout-btn"
+              onClick={() => { closeMenu(); void handleSignOut(); }}
+              disabled={loggingOut}
+              title={signOutText}
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Mobile bottom dock — 5 items, no Home (logo handles it) */}
       {showMobileDock && (
-        <div className="mobile-dock" aria-label="Mobile navigation">
-          <Link to="/" className={`mobile-dock-item ${dockActive('home') ? 'active' : ''}`}>
-            <House size={18} />
-            <span>{t('navHome')}</span>
+        <nav className="mobile-dock" aria-label="Mobile navigation">
+          <Link to="/practice" className={dockCls(isPractice)}>
+            <GraduationCap size={21} />
+            <span>Luyện tập</span>
           </Link>
-          <Link to="/practice" className={`mobile-dock-item ${dockActive('practice') ? 'active' : ''}`}>
-            <GraduationCap size={18} />
-            <span>{t('navPractice')}</span>
+          <Link to="/learn" className={dockCls(isLearn)}>
+            <Layers size={21} />
+            <span>Mock</span>
           </Link>
-          <Link to="/generate" className={`mobile-dock-item ${dockActive('exam') ? 'active' : ''}`}>
-            <PlayCircle size={18} />
-            <span>{t('navExam')}</span>
+          <Link to="/generate" className={`${dockCls(isExam)} mobile-dock-center`}>
+            <PlayCircle size={24} />
+            <span>Thi thử</span>
           </Link>
-          <Link to="/history" className={`mobile-dock-item ${dockActive('history') ? 'active' : ''}`}>
-            <HistoryIcon size={18} />
-            <span>{t('navHistory')}</span>
+          <Link to="/history" className={dockCls(isHistory)}>
+            <HistoryIcon size={21} />
+            <span>Lịch sử</span>
           </Link>
-          <Link to="/battle/join" className={`mobile-dock-item ${dockActive('battle') ? 'active' : ''}`}>
-            <Swords size={18} />
-            <span>{t('navJoinBattle')}</span>
+          <Link to="/battle/join" className={dockCls(isBattle)}>
+            <Swords size={21} />
+            <span>Battle</span>
           </Link>
-        </div>
+        </nav>
       )}
     </nav>
   );
@@ -271,6 +305,9 @@ function AppShell() {
           <Route path="/practice" element={<RequireAuth allowRoles={['admin', 'user']}><PracticeSetup /></RequireAuth>} />
           <Route path="/practice/session" element={<RequireAuth allowRoles={['admin', 'user']}><PracticeSession /></RequireAuth>} />
           <Route path="/practice/progress" element={<RequireAuth allowRoles={['admin', 'user']}><PracticeProgress /></RequireAuth>} />
+          <Route path="/learn" element={<RequireAuth allowRoles={['admin', 'user']}><LearnMap /></RequireAuth>} />
+          <Route path="/learn/:sessionId/mock/:mockIndex/study" element={<RequireAuth allowRoles={['admin', 'user']}><LearnStudy /></RequireAuth>} />
+          <Route path="/learn/:sessionId/mock/:mockIndex/quiz" element={<RequireAuth allowRoles={['admin', 'user']}><LearnQuiz /></RequireAuth>} />
           <Route path="/battle/join" element={<RequireAuth allowRoles={['admin', 'user']}><BattleJoin /></RequireAuth>} />
           <Route path="/import" element={<Navigate to="/admin/import" replace />} />
           <Route path="/bank" element={<Navigate to="/admin/bank" replace />} />

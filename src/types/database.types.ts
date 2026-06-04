@@ -60,6 +60,17 @@ export type Competition = {
   created_at?: string;
 };
 
+export type MockProgress = {
+  id: string;
+  user_id: string;
+  session_id: string;
+  mock_index: number;
+  stars: number;
+  best_score: number;
+  attempts: number;
+  completed_at?: string;
+};
+
 export type QuestionMastery = {
   id: string;
   user_id: string;

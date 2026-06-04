@@ -14,6 +14,482 @@ type ParsedQuestion = {
   correct_options: string[];
 };
 
+const QUESTION_LIMIT_PER_PARSE = 50;
+
+const NOISE_LINE_PATTERNS = [
+  /^\(?\s*choose\s+\d+\s+answer(?:s)?\s*\)?$/i,
+  /^fureview\.com$/i,
+  /^fuoverflow\.com$/i,
+  /^page\s*\d+$/i,
+  /^(next|prev|previous|back|submit|close|open)\b/i,
+  /^question\s*:\s*\d+$/i,
+  /^\(?\s*chọn\s+\d+\s+đáp\s+án\s*\)?$/i,
+];
+
+const SHORT_NOISE_TOKENS = new Set(['ll', 'mm']);
+const QUESTION_BOUNDARY_TOKENS = new Set(['re', 'pe', 'pa', 'pr']);
+const BLANK_LINE_SENTINEL = '__BLANK_LINE__';
+
+function fixCommonOcrTypos(input: string): string {
+  return input
+    .replace(/\bTh1s\b/g, 'This')
+    .replace(/\bth1s\b/g, 'this')
+    .replace(/\b1s\b/g, 'is')
+    .replace(/\b0f\b/g, 'of')
+    .replace(/([A-Za-z])1([A-Za-z])/g, '$1i$2');
+}
+
+function normalizeLine(input: string): string {
+  return fixCommonOcrTypos(input)
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isNoiseLine(line: string): boolean {
+  if (!line) return true;
+  if (/^q\s*:\s*\d+\]?$/i.test(line)) return true;
+  if (SHORT_NOISE_TOKENS.has(line.toLowerCase())) return true;
+  return NOISE_LINE_PATTERNS.some((pattern) => pattern.test(line));
+}
+
+function isQuestionBoundaryLine(line: string): boolean {
+  return QUESTION_BOUNDARY_TOKENS.has(normalizeLine(line).toLowerCase());
+}
+
+function cleanQuestionPrefix(line: string): { isQuestionStart: boolean; content: string } {
+  const normalized = normalizeLine(line);
+  let match = normalized.match(/^(?:question|câu)\s*\d+\s*[:.)-]?\s*(.*)$/i);
+  if (match) return { isQuestionStart: true, content: (match[1] ?? '').trim() };
+
+  match = normalized.match(/^\d{1,3}\s*[.)-]\s*(.*)$/);
+  if (match) return { isQuestionStart: true, content: (match[1] ?? '').trim() };
+
+  return { isQuestionStart: false, content: normalized };
+}
+
+function parseOptionLine(line: string): { label: string; content: string } | null {
+  const normalized = normalizeLine(line);
+  const match = normalized.match(/^[\[\](){}<>|\\/\-_*\u25A1\u25A0\u2022\u00B7O0]*\s*([A-H])\s*[.)\]:-]\s*(.+)$/i);
+  if (!match) return null;
+  return {
+    label: match[1].toUpperCase(),
+    content: normalizeLine(match[2]),
+  };
+}
+
+function parseLooseOptionLine(line: string): { label: string; content: string } | null {
+  const normalized = normalizeLine(line);
+  const match = normalized.match(/^[\[\](){}<>|\\/\-_*\u25A1\u25A0\u2022\u00B7O0]*\s*([A-H])\s+(.+)$/i);
+  if (!match) return null;
+  return {
+    label: match[1].toUpperCase(),
+    content: normalizeLine(match[2]),
+  };
+}
+
+function parseMergedOptionLine(line: string): { label: string; content: string } | null {
+  const normalized = normalizeLine(line);
+  const match = normalized.match(/^([A-H])([A-H])\s+(.+)$/i);
+  if (!match) return null;
+  return {
+    label: match[1].toUpperCase(),
+    content: normalizeLine(`${match[2]} ${match[3]}`),
+  };
+}
+
+function optionLabelToIndex(label: string): number {
+  return label.toUpperCase().charCodeAt(0) - 65;
+}
+
+function parseOptionLabelOnly(line: string): string | null {
+  const normalized = normalizeLine(line);
+  const match = normalized.match(/^[\[\](){}<>|\\/\-_*\u25A1\u25A0\u2022\u00B7O0]*\s*([A-H])\s*[.)\]:-]?$/i);
+  if (!match) return null;
+  return match[1].toUpperCase();
+}
+
+function isLikelyQuestionLine(line: string): boolean {
+  const normalized = normalizeLine(line);
+  if (normalized.length < 14) return false;
+  if (/[?:]$/.test(normalized)) return true;
+  return /^(true or false|which|what|who|when|where|why|how|you\b|your\b|as you|the scope management|in project management|the process improvement plan|an output of|all the following)/i.test(normalized);
+}
+
+function splitOptionContentAndQuestionTail(content: string): { optionText: string; questionTail: string | null } {
+  const normalized = normalizeLine(content);
+  if (!normalized) return { optionText: '', questionTail: null };
+
+  const marker = /\b(true or false|which|what|who|when|where|why|how|you\b|your\b|as you|the scope management|in project management|the process improvement plan)\b/i;
+  const match = marker.exec(normalized);
+  if (!match || typeof match.index !== 'number' || match.index <= 0) {
+    return { optionText: normalized, questionTail: null };
+  }
+
+  const optionText = normalized.slice(0, match.index).trim();
+  const questionTail = normalized.slice(match.index).trim();
+  if (!optionText || !questionTail || !isLikelyQuestionLine(questionTail)) {
+    return { optionText: normalized, questionTail: null };
+  }
+
+  const optionWordCount = optionText.split(/\s+/).filter(Boolean).length;
+  const looksLikeShortOption = optionWordCount <= 4 || /^(true|false)$/i.test(optionText);
+  if (!looksLikeShortOption) {
+    return { optionText: normalized, questionTail: null };
+  }
+
+  return { optionText, questionTail };
+}
+
+function splitInlineOptions(line: string): string[] {
+  if (!line.trim()) return [BLANK_LINE_SENTINEL];
+  const normalized = normalizeLine(line);
+  if (!normalized) return [];
+
+  // Split lines that contain inline choices: "... A. ... B. ... C. ..."
+  const withOptionBreaks = normalized.replace(/\s+(?=[\[\](){}<>|\\/\-_*\u25A1\u25A0\u2022\u00B7O0]*\s*[A-H]\s*[.)\]:-]\s*[A-Za-z])/g, '\n');
+  return withOptionBreaks
+    .split('\n')
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function appendText(base: string, next: string): string {
+  if (!next) return base;
+  if (!base) return next;
+  return `${base} ${next}`;
+}
+
+async function preprocessExamScreenshot(file: File): Promise<string | File> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const baseCanvas = document.createElement('canvas');
+    baseCanvas.width = bitmap.width;
+    baseCanvas.height = bitmap.height;
+    const baseCtx = baseCanvas.getContext('2d');
+    if (!baseCtx) {
+      return file;
+    }
+
+    baseCtx.drawImage(bitmap, 0, 0);
+    const { width, height } = baseCanvas;
+    const pixels = baseCtx.getImageData(0, 0, width, height).data;
+
+    let dividerX = Math.floor(width * 0.38);
+    let bestScore = 0;
+
+    // Find the vertical red divider that usually separates sidebar and question panel.
+    for (let x = Math.floor(width * 0.2); x < Math.floor(width * 0.8); x++) {
+      let score = 0;
+      for (let y = Math.floor(height * 0.08); y < Math.floor(height * 0.95); y += 2) {
+        const idx = (y * width + x) * 4;
+        const r = pixels[idx];
+        const g = pixels[idx + 1];
+        const b = pixels[idx + 2];
+        if (r > 170 && g < 90 && b < 90) score++;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        dividerX = x;
+      }
+    }
+
+    const xStart = Math.min(width - 80, Math.max(0, dividerX + 6));
+    const yStart = Math.max(0, Math.floor(height * 0.08));
+    const cropWidth = Math.max(80, width - xStart - Math.floor(width * 0.015));
+    const cropHeight = Math.max(80, height - yStart - Math.floor(height * 0.03));
+
+    const scale = 2;
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = Math.max(1, cropWidth * scale);
+    outputCanvas.height = Math.max(1, cropHeight * scale);
+    const outputCtx = outputCanvas.getContext('2d');
+    if (!outputCtx) {
+      return file;
+    }
+
+    outputCtx.imageSmoothingEnabled = true;
+    outputCtx.imageSmoothingQuality = 'high';
+    outputCtx.drawImage(
+      baseCanvas,
+      xStart,
+      yStart,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      outputCanvas.width,
+      outputCanvas.height,
+    );
+
+    const imgData = outputCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+      const boosted = Math.max(0, Math.min(255, (gray - 128) * 1.6 + 128));
+      const normalized = boosted > 242 ? 255 : boosted;
+      data[i] = normalized;
+      data[i + 1] = normalized;
+      data[i + 2] = normalized;
+    }
+
+    outputCtx.putImageData(imgData, 0, 0);
+    return outputCanvas.toDataURL('image/png');
+  } finally {
+    bitmap.close();
+  }
+}
+
+function parseQuestionsFromText(rawText: string): ParsedQuestion[] {
+  const lines = rawText
+    .replace(/\r/g, '')
+    .split('\n')
+    .flatMap((line) => splitInlineOptions(line));
+
+  const parsedData: ParsedQuestion[] = [];
+  let current: ParsedQuestion | null = null;
+  let lastOptionIndex = -1;
+  let pendingOptionLabel: string | null = null;
+  let blankLineCount = 0;
+
+  const flushCurrent = () => {
+    if (!current) return;
+    const question_text = normalizeLine(current.question_text);
+    const options = current.options.map((opt) => normalizeLine(opt)).filter(Boolean);
+    const hasEnoughData = question_text.length >= 8 && options.length >= 2;
+
+    if (hasEnoughData) {
+      parsedData.push({
+        ...current,
+        question_text,
+        options,
+      });
+    }
+
+    current = null;
+    lastOptionIndex = -1;
+    pendingOptionLabel = null;
+    blankLineCount = 0;
+  };
+
+  const ensureCurrent = (): ParsedQuestion => {
+    if (current) return current;
+    current = {
+      id: Math.random().toString(),
+      question_text: '',
+      options: [],
+      correct_options: [],
+    };
+    return current;
+  };
+
+  const hasCurrentContent = () => {
+    if (!current) return false;
+    return Boolean(current.question_text || current.options.length > 0);
+  };
+
+  const hasCurrentQuestionText = () => {
+    if (!current) return false;
+    return Boolean(current.question_text);
+  };
+
+  const currentOptionCount = () => {
+    if (!current) return 0;
+    return current.options.length;
+  };
+
+  for (const rawLine of lines) {
+    if (rawLine === BLANK_LINE_SENTINEL) {
+      blankLineCount += 1;
+      if (blankLineCount >= 2 && hasCurrentContent()) {
+        flushCurrent();
+      }
+      continue;
+    }
+
+    blankLineCount = 0;
+    const normalizedLine = normalizeLine(rawLine);
+    if (isQuestionBoundaryLine(normalizedLine)) {
+      if (hasCurrentContent()) {
+        flushCurrent();
+      }
+      continue;
+    }
+    if (isNoiseLine(normalizedLine)) continue;
+
+    const option = parseOptionLine(normalizedLine);
+    if (option) {
+      const active = ensureCurrent();
+      const { optionText, questionTail } = splitOptionContentAndQuestionTail(option.content);
+      active.options.push(optionText || option.content);
+      lastOptionIndex = active.options.length - 1;
+      pendingOptionLabel = null;
+
+      if (questionTail) {
+        flushCurrent();
+        const nextQuestion = ensureCurrent();
+        nextQuestion.question_text = appendText(nextQuestion.question_text, questionTail);
+      }
+      continue;
+    }
+
+    const mergedOption = parseMergedOptionLine(normalizedLine);
+    if (mergedOption && hasCurrentQuestionText()) {
+      const active = ensureCurrent();
+      const optionCount = active.options.length;
+      const labelIndex = optionLabelToIndex(mergedOption.label);
+      const isExpectedLabel = labelIndex === optionCount;
+      const alreadyInOptionMode = optionCount > 0 || lastOptionIndex >= 0;
+
+      if (isExpectedLabel && (alreadyInOptionMode || optionCount === 0)) {
+        const { optionText, questionTail } = splitOptionContentAndQuestionTail(mergedOption.content);
+        active.options.push(optionText || mergedOption.content);
+        lastOptionIndex = active.options.length - 1;
+        pendingOptionLabel = null;
+
+        if (questionTail) {
+          flushCurrent();
+          const nextQuestion = ensureCurrent();
+          nextQuestion.question_text = appendText(nextQuestion.question_text, questionTail);
+        }
+        continue;
+      }
+    }
+
+    const looseOption = parseLooseOptionLine(normalizedLine);
+    if (looseOption && hasCurrentQuestionText()) {
+      const active = ensureCurrent();
+      const optionCount = active.options.length;
+      const labelIndex = optionLabelToIndex(looseOption.label);
+      const isExpectedLabel = labelIndex === optionCount;
+      const alreadyInOptionMode = optionCount > 0 || lastOptionIndex >= 0;
+
+      if (isExpectedLabel && (alreadyInOptionMode || optionCount === 0)) {
+        const { optionText, questionTail } = splitOptionContentAndQuestionTail(looseOption.content);
+        active.options.push(optionText || looseOption.content);
+        lastOptionIndex = active.options.length - 1;
+        pendingOptionLabel = null;
+
+        if (questionTail) {
+          flushCurrent();
+          const nextQuestion = ensureCurrent();
+          nextQuestion.question_text = appendText(nextQuestion.question_text, questionTail);
+        }
+        continue;
+      }
+    }
+
+    const labelOnly = parseOptionLabelOnly(normalizedLine);
+    if (labelOnly) {
+      const active = ensureCurrent();
+      active.options.push('');
+      lastOptionIndex = active.options.length - 1;
+      pendingOptionLabel = labelOnly;
+      continue;
+    }
+
+    const { isQuestionStart, content } = cleanQuestionPrefix(normalizedLine);
+    const cleanedContent = normalizeLine(content);
+    if (isQuestionStart) {
+      if (hasCurrentContent()) {
+        flushCurrent();
+      }
+      const active = ensureCurrent();
+      if (cleanedContent && !isNoiseLine(cleanedContent)) {
+        active.question_text = appendText(active.question_text, cleanedContent);
+      }
+      continue;
+    }
+
+    if (hasCurrentContent() && lastOptionIndex >= 0 && currentOptionCount() >= 2 && isLikelyQuestionLine(cleanedContent)) {
+      flushCurrent();
+      const active = ensureCurrent();
+      active.question_text = appendText(active.question_text, cleanedContent);
+      continue;
+    }
+
+    if (!cleanedContent || isNoiseLine(cleanedContent)) {
+      continue;
+    }
+
+    const active = ensureCurrent();
+    if (lastOptionIndex >= 0) {
+      active.options[lastOptionIndex] = appendText(active.options[lastOptionIndex], cleanedContent);
+      if (pendingOptionLabel) {
+        pendingOptionLabel = null;
+      }
+    } else {
+      active.question_text = appendText(active.question_text, cleanedContent);
+    }
+  }
+
+  flushCurrent();
+  return parsedData.slice(0, QUESTION_LIMIT_PER_PARSE);
+}
+
+async function parseQuestionsFromDocx(file: File): Promise<ParsedQuestion[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mammoth = await import('mammoth') as any;
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(result.value as string, 'text/html');
+  const paragraphs = Array.from(doc.querySelectorAll('p'));
+
+  const questions: ParsedQuestion[] = [];
+  let current: ParsedQuestion | null = null;
+
+  const flush = () => {
+    if (current && current.question_text.trim() && current.options.length >= 2) {
+      questions.push(current);
+    }
+    current = null;
+  };
+
+  for (const para of paragraphs) {
+    const rawText = (para.textContent ?? '').trim();
+    if (!rawText) continue;
+
+    // Question line: "1." "2." ... or "Câu 1:"
+    const qMatch = rawText.match(/^(?:câu\s*)?\d+[.)]\s*(.+)/i);
+    if (qMatch) {
+      flush();
+      current = {
+        id: Math.random().toString(),
+        question_text: qMatch[1].trim(),
+        options: [],
+        correct_options: [],
+      };
+      continue;
+    }
+
+    // Option line: "a." "b." ... (lower or upper)
+    const optMatch = rawText.match(/^([a-dA-D])[.)]\s*(.+)/);
+    if (optMatch && current) {
+      const label = optMatch[1].toUpperCase();
+      current.options.push(optMatch[2].trim());
+      // Bold text anywhere in this paragraph = correct answer
+      if (para.querySelector('strong') !== null || para.querySelector('b') !== null) {
+        current.correct_options.push(label);
+      }
+      continue;
+    }
+
+    // Continuation of question text before any options
+    if (current && current.options.length === 0) {
+      current.question_text += ' ' + rawText;
+    }
+  }
+
+  flush();
+  return questions.slice(0, QUESTION_LIMIT_PER_PARSE);
+}
+
 export default function ImportQuestions() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -27,9 +503,11 @@ export default function ImportQuestions() {
   const [subjectId, setSubjectId] = useState('');
   const [sessionId, setSessionId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [docxLoading, setDocxLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [searchQuery, setSearchQuery] = useState('');
+  const [useLayoutFilter, setUseLayoutFilter] = useState(true);
 
   useEffect(() => {
     fetchSubjects();
@@ -41,7 +519,7 @@ export default function ImportQuestions() {
         if (item.type.indexOf('image') === 0) {
           const file = item.getAsFile();
           if (file) {
-            processImage(file);
+            processImages([file]);
           }
           break;
         }
@@ -70,17 +548,30 @@ export default function ImportQuestions() {
     else setSessions([]);
   };
 
-  const processImage = async (file: File) => {
+  const processImages = async (files: File[]) => {
+    if (files.length === 0) return;
     setLoading(true);
     setProgress(0);
     
     try {
-      const result = await Tesseract.recognize(file, 'vie+eng', {
-        logger: m => {
-          if (m.status === 'recognizing text') setProgress(Math.round(m.progress * 100));
-        }
-      });
-      setText(prev => prev + (prev ? '\n\n' : '') + result.data.text);
+      const extracted: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const imageSource = useLayoutFilter
+          ? await preprocessExamScreenshot(files[i])
+          : files[i];
+        const result = await Tesseract.recognize(imageSource, 'eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              const overall = ((i + m.progress) / files.length) * 100;
+              setProgress(Math.round(overall));
+            }
+          }
+        });
+        extracted.push(result.data.text);
+      }
+
+      const merged = extracted.join('\n\n');
+      setText(prev => prev + (prev ? '\n\n' : '') + merged);
     } catch (err) {
       toast(t('importOcrError', { message: JSON.stringify(err) }), 'error');
     } finally {
@@ -88,48 +579,36 @@ export default function ImportQuestions() {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDocxUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    await processImage(file);
+    setDocxLoading(true);
+    try {
+      const questions = await parseQuestionsFromDocx(file);
+      if (questions.length === 0) {
+        toast('Không tìm thấy câu hỏi trong file. Kiểm tra định dạng: số thứ tự + chữ cái a/b/c/d.', 'warning');
+      } else {
+        setParsed(questions);
+        setPage(1);
+        toast(`Đã đọc ${questions.length} câu hỏi từ file .docx`, 'success');
+      }
+    } catch (err) {
+      toast(`Lỗi đọc file .docx: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    } finally {
+      setDocxLoading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    await processImages(files);
+    e.target.value = '';
   };
 
   const handleParse = () => {
-    const blocks = text.split(/(?=[0-9]+\.\s*|(?:Question|C\u00e2u)\s+[0-9]+:)/i).filter(b => b.trim().length > 10);
-    const parsedData: ParsedQuestion[] = [];
-    
-    for (const block of blocks.length > 0 ? blocks : [text]) {
-      const optionIndices: {label: string, index: number}[] = [];
-      const regex = /\b([A-H])\.\s/g;
-      let match;
-      
-      while ((match = regex.exec(block)) !== null) {
-        optionIndices.push({ label: match[1], index: match.index });
-      }
-      
-      let question_text = block;
-      let options: string[] = [];
-
-      if (optionIndices.length > 0) {
-        question_text = block.substring(0, optionIndices[0].index).trim();
-        for (let i = 0; i < optionIndices.length; i++) {
-           const start = optionIndices[i].index + optionIndices[i].label.length + 1;
-           const end = i < optionIndices.length - 1 ? optionIndices[i+1].index : block.length;
-           options.push(block.substring(start, end).trim());
-        }
-      } else {
-        // Fallback or empty options if no A. B. C. pattern was found
-        options = [];
-      }
-
-      parsedData.push({
-        id: Math.random().toString(),
-        question_text,
-        options,
-        correct_options: []
-      });
-    }
-    
+    const parsedData = parseQuestionsFromText(text);
     setParsed(parsedData);
     setPage(1);
   };
@@ -228,8 +707,34 @@ export default function ImportQuestions() {
           <div className="mb-4 border-2 border-dashed border-gray-300 rounded p-6 text-center" style={{ border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
             <UploadCloud size={48} className="text-muted mx-auto mb-2" />
             <p className="mb-4 text-sm text-muted">{t('importUploadImage')}</p>
-            <input type="file" accept="image/*" onChange={handleImageUpload} style={{ width: '100%' }} />
+            <label className="mb-3" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={useLayoutFilter}
+                onChange={(e) => setUseLayoutFilter(e.target.checked)}
+                style={{ width: 'auto' }}
+              />
+              <span className="text-sm text-muted">OCR ảnh đề thi bố cục cố định (khuyên dùng)</span>
+            </label>
+            <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ width: '100%' }} />
             {loading && <p className="mt-2 text-primary" style={{ fontWeight: 600 }}>{t('importScanning', { progress })}</p>}
+          </div>
+
+          <div className="mt-4 border-2 border-dashed rounded p-4 text-center" style={{ border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-lg)' }}>
+            <p className="mb-2 text-sm text-muted" style={{ fontWeight: 600 }}>Import từ file Word (.docx)</p>
+            <p className="mb-3 text-sm text-muted">Đáp án đúng phải được <strong>bôi đậm (bold)</strong> trong Word</p>
+            <label style={{ display: 'inline-block', cursor: 'pointer' }}>
+              <span className="btn btn-secondary" style={{ pointerEvents: 'none' }}>
+                {docxLoading ? '⏳ Đang đọc...' : '📄 Chọn file .docx'}
+              </span>
+              <input
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={handleDocxUpload}
+                disabled={docxLoading}
+                style={{ display: 'none' }}
+              />
+            </label>
           </div>
 
           <div className="mt-6">
