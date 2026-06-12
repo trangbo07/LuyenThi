@@ -49,6 +49,7 @@ export default function PracticeSession() {
   const subjectId: string = location.state?.subjectId || '';
   const mode: 'all' | 'wrong' | 'confusing' = location.state?.mode || 'all';
   const shuffleQuestions: boolean = location.state?.shuffleQuestions ?? true;
+  const shuffleOptions: boolean = location.state?.shuffleOptions ?? true;
 
   const [questions, setQuestions] = useState<PracticeQ[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -117,7 +118,9 @@ export default function PracticeSession() {
           label: String.fromCharCode(65 + idx),
           text,
         }));
-        const shuffledOpts = [...opts].sort(() => Math.random() - 0.5);
+        const shuffledOpts = shuffleOptions
+          ? [...opts].sort(() => Math.random() - 0.5)
+          : opts;
         return {
           ...q,
           shuffled_options: shuffledOpts,
@@ -165,7 +168,7 @@ export default function PracticeSession() {
     })();
 
     return () => { cancelled = true; };
-  }, [sessionId, subjectId, user?.id, mode, shuffleQuestions]);
+  }, [sessionId, subjectId, user?.id, mode, shuffleQuestions, shuffleOptions]);
 
   // Find confusing matches for current question
   useEffect(() => {

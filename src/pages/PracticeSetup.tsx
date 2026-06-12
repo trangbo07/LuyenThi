@@ -23,6 +23,7 @@ export default function PracticeSetup() {
   const [selectedSession, setSelectedSession] = useState('');
   const [loading, setLoading] = useState(false);
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
+  const [shuffleOptions, setShuffleOptions] = useState(true);
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [masteryRows, setMasteryRows] = useState<QuestionMastery[]>([]);
 
@@ -92,6 +93,7 @@ export default function PracticeSetup() {
         sessionId: selectedSession,
         mode,
         shuffleQuestions,
+        shuffleOptions,
       },
     });
   };
@@ -155,6 +157,23 @@ export default function PracticeSetup() {
                 style={{ borderRadius: '999px', minWidth: '110px' }}
               >
                 {shuffleQuestions ? t('practiceShuffleEnabled') : t('practiceShuffleDisabled')}
+              </button>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: '1rem' }}>
+            <div className="flex items-center justify-between" style={{ gap: '0.75rem' }}>
+              <div>
+                <div style={{ fontWeight: 800 }}>{t('practiceShuffleOptions')}</div>
+                <div className="text-muted" style={{ fontSize: '0.92rem' }}>{t('practiceShuffleOptionsHint')}</div>
+              </div>
+              <button
+                type="button"
+                className={`btn ${shuffleOptions ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setShuffleOptions(prev => !prev)}
+                style={{ borderRadius: '999px', minWidth: '110px' }}
+              >
+                {shuffleOptions ? t('practiceShuffleEnabled') : t('practiceShuffleDisabled')}
               </button>
             </div>
           </div>

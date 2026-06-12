@@ -19,6 +19,9 @@ export default function GenerateExam() {
   const [questionCount, setQuestionCount] = useState<number>(50);
   const [timeLimit, setTimeLimit] = useState<number>(60);
   
+  const [shuffleQuestions, setShuffleQuestions] = useState<boolean>(true);
+  const [shuffleOptions, setShuffleOptions] = useState<boolean>(true);
+  
   const [step, setStep] = useState(1);
   const [generating, setGenerating] = useState(false);
 
@@ -101,14 +104,19 @@ export default function GenerateExam() {
     });
 
     const uniqueQuestions = Array.from(uniqueQuestionsMap.values());
-    const shuffledQuestions = [...uniqueQuestions].sort(() => Math.random() - 0.5).slice(0, questionCount);
+    const orderedQuestions = shuffleQuestions
+      ? [...uniqueQuestions].sort(() => Math.random() - 0.5)
+      : uniqueQuestions;
+    const selectedQuestions = orderedQuestions.slice(0, questionCount);
 
-    const processedQuestions = shuffledQuestions.map(q => {
+    const processedQuestions = selectedQuestions.map(q => {
       const options = (q.options || []).map((text: string, idx: number) => ({
         label: String.fromCharCode(65 + idx),
         text
       }));
-      options.sort(() => Math.random() - 0.5);
+      if (shuffleOptions) {
+        options.sort(() => Math.random() - 0.5);
+      }
       return {
         ...q,
         shuffled_options: options,
@@ -226,6 +234,36 @@ export default function GenerateExam() {
                     />
                     <span className="config-suffix">minutes</span>
                   </div>
+                </div>
+
+                <div className="config-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                  <div>
+                    <label style={{ margin: 0, fontWeight: 700 }}>{t('practiceShuffleQuestions')}</label>
+                    <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.25' }}>{t('practiceShuffleQuestionsHint')}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`btn ${shuffleQuestions ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setShuffleQuestions(prev => !prev)}
+                    style={{ borderRadius: '999px', minWidth: '110px', padding: '0.5rem 1rem' }}
+                  >
+                    {shuffleQuestions ? t('practiceShuffleEnabled') : t('practiceShuffleDisabled')}
+                  </button>
+                </div>
+
+                <div className="config-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                  <div>
+                    <label style={{ margin: 0, fontWeight: 700 }}>{t('practiceShuffleOptions')}</label>
+                    <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem', lineHeight: '1.25' }}>{t('practiceShuffleOptionsHint')}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`btn ${shuffleOptions ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setShuffleOptions(prev => !prev)}
+                    style={{ borderRadius: '999px', minWidth: '110px', padding: '0.5rem 1rem' }}
+                  >
+                    {shuffleOptions ? t('practiceShuffleEnabled') : t('practiceShuffleDisabled')}
+                  </button>
                 </div>
               </div>
             </div>
