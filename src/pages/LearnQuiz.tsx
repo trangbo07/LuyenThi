@@ -48,6 +48,7 @@ export default function LearnQuiz() {
         .select('id, question_text, options, correct_options')
         .eq('session_id', sessionId)
         .order('created_at')
+        .order('id')
         .range(from, to);
       setQuestions(shuffle((data as Question[]) || []));
       setLoading(false);

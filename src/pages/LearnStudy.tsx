@@ -26,6 +26,7 @@ export default function LearnStudy() {
         .select('id, question_text, options, correct_options')
         .eq('session_id', sessionId)
         .order('created_at')
+        .order('id')
         .range(from, to);
       const qs = (data as Question[]) || [];
       setQuestions(qs);
