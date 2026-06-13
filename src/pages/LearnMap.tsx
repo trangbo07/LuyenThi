@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/useAuth';
 import type { Subject, ExamSession, MockProgress } from '../types/database.types';
@@ -9,6 +9,7 @@ export const MOCK_SIZE = 25;
 
 export default function LearnMap() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -20,8 +21,29 @@ export default function LearnMap() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.from('subjects').select('*').order('name').then(({ data }) => {
-      if (data) setSubjects(data);
+    const initSessionId = searchParams.get('session');
+    supabase.from('subjects').select('*').order('name').then(async ({ data: subs }) => {
+      if (subs) setSubjects(subs);
+      if (initSessionId && subs && user?.id) {
+        // Find the session to get its subject_id
+        const { data: sess } = await supabase.from('exam_sessions').select('*').eq('id', initSessionId).maybeSingle();
+        if (sess) {
+          setSelectedSubject(sess.subject_id);
+          const { data: allSessions } = await supabase.from('exam_sessions').select('*').eq('subject_id', sess.subject_id).order('name');
+          if (allSessions) setSessions(allSessions);
+          setSelectedSession(initSessionId);
+          setLoading(true);
+          const [{ count }, { data: prog }] = await Promise.all([
+            supabase.from('questions').select('*', { count: 'exact', head: true }).eq('session_id', initSessionId),
+            supabase.from('mock_progress').select('*').eq('user_id', user.id).eq('session_id', initSessionId),
+          ]);
+          setQuestionCount(count ?? 0);
+          setProgress((prog as MockProgress[]) || []);
+          setLoading(false);
+          // Clean up the URL
+          setSearchParams({}, { replace: true });
+        }
+      }
     });
   }, []);
 

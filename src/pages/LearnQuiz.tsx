@@ -209,7 +209,7 @@ export default function LearnQuiz() {
             <button className="btn btn-secondary" onClick={handleRetry}>
               <RotateCcw size={15} /> Thử lại quiz
             </button>
-            <button className="btn btn-primary" onClick={() => navigate('/learn')}>
+            <button className="btn btn-primary" onClick={() => navigate(`/learn?session=${sessionId}`)}>
               <Map size={15} /> Bản đồ Mock
             </button>
           </div>
